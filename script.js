@@ -51,6 +51,10 @@ function saveMemories() {
 }
 
 
+/* =========================================
+   ADD MEMORY
+========================================= */
+
 function addMemory(memory) {
 
   memory = memory.trim();
@@ -79,10 +83,76 @@ function addMemory(memory) {
 }
 
 
-function getMemoryContext() {
+/* =========================================
+   DELETE MEMORY
+========================================= */
+
+function deleteMemory(index) {
+
+  if (
+    index < 0 ||
+    index >= novaMemories.length
+  ) {
+    return;
+  }
+
+
+  novaMemories.splice(
+    index,
+    1
+  );
+
+
+  saveMemories();
+
+  renderMemoryPanel();
+
+}
+
+
+/* =========================================
+   CLEAR ALL MEMORIES
+========================================= */
+
+function clearAllMemories() {
 
   if (novaMemories.length === 0) {
+    return;
+  }
+
+
+  const confirmed =
+    confirm(
+      "Delete all NOVA memories?"
+    );
+
+
+  if (!confirmed) {
+    return;
+  }
+
+
+  novaMemories = [];
+
+  saveMemories();
+
+  renderMemoryPanel();
+
+}
+
+
+/* =========================================
+   MEMORY CONTEXT
+========================================= */
+
+function getMemoryContext() {
+
+  if (
+    novaMemories.length === 0
+  ) {
+
     return "";
+
   }
 
 
@@ -98,6 +168,7 @@ ${novaMemories
 Use these memories when they are relevant to the user's request.
 Do not mention the memory system unless the user asks about it.
 `;
+
 }
 
 
@@ -768,6 +839,449 @@ async function generateLocalResponse(
   }
 
 }
+
+
+/* =========================================
+   MEMORY PANEL
+========================================= */
+
+function renderMemoryPanel() {
+
+  const existing =
+    document.getElementById(
+      "nova-memory-panel"
+    );
+
+
+  if (existing) {
+    existing.remove();
+  }
+
+
+  const panel =
+    document.createElement("div");
+
+
+  panel.id =
+    "nova-memory-panel";
+
+
+  panel.style.position =
+    "fixed";
+
+  panel.style.top =
+    "0";
+
+  panel.style.left =
+    "0";
+
+  panel.style.right =
+    "0";
+
+  panel.style.bottom =
+    "0";
+
+  panel.style.zIndex =
+    "9999";
+
+  panel.style.background =
+    "rgba(0,0,0,0.75)";
+
+  panel.style.display =
+    "flex";
+
+  panel.style.alignItems =
+    "center";
+
+  panel.style.justifyContent =
+    "center";
+
+  panel.style.padding =
+    "20px";
+
+
+  const box =
+    document.createElement("div");
+
+
+  box.style.width =
+    "100%";
+
+  box.style.maxWidth =
+    "500px";
+
+  box.style.maxHeight =
+    "80vh";
+
+  box.style.overflowY =
+    "auto";
+
+  box.style.background =
+    "#11141b";
+
+  box.style.border =
+    "1px solid #292e38";
+
+  box.style.borderRadius =
+    "18px";
+
+  box.style.padding =
+    "22px";
+
+  box.style.color =
+    "white";
+
+
+  const title =
+    document.createElement("h2");
+
+
+  title.textContent =
+    "NOVA Memory";
+
+
+  title.style.marginTop =
+    "0";
+
+
+  const description =
+    document.createElement("p");
+
+
+  description.textContent =
+    "Information NOVA has saved about you.";
+
+  description.style.opacity =
+    "0.7";
+
+
+  box.appendChild(
+    title
+  );
+
+  box.appendChild(
+    description
+  );
+
+
+  /* =====================================
+     ADD MEMORY BUTTON
+  ====================================== */
+
+  const addButton =
+    document.createElement("button");
+
+
+  addButton.textContent =
+    "＋ Add memory";
+
+
+  addButton.style.width =
+    "100%";
+
+  addButton.style.padding =
+    "12px";
+
+  addButton.style.margin =
+    "10px 0";
+
+  addButton.style.borderRadius =
+    "10px";
+
+  addButton.style.border =
+    "none";
+
+  addButton.style.cursor =
+    "pointer";
+
+
+  addButton.addEventListener(
+    "click",
+    () => {
+
+      const memory =
+        prompt(
+          "What should NOVA remember?"
+        );
+
+
+      if (memory) {
+
+        addMemory(
+          memory
+        );
+
+        renderMemoryPanel();
+
+      }
+
+    }
+  );
+
+
+  box.appendChild(
+    addButton
+  );
+
+
+  /* =====================================
+     MEMORY LIST
+  ====================================== */
+
+  if (
+    novaMemories.length === 0
+  ) {
+
+    const empty =
+      document.createElement("p");
+
+
+    empty.textContent =
+      "NOVA has no saved memories yet.";
+
+    empty.style.opacity =
+      "0.6";
+
+
+    box.appendChild(
+      empty
+    );
+
+  } else {
+
+    novaMemories.forEach(
+      (memory, index) => {
+
+        const row =
+          document.createElement("div");
+
+
+        row.style.display =
+          "flex";
+
+        row.style.alignItems =
+          "center";
+
+        row.style.justifyContent =
+          "space-between";
+
+        row.style.gap =
+          "10px";
+
+        row.style.padding =
+          "12px 0";
+
+        row.style.borderBottom =
+          "1px solid #252a33";
+
+
+        const text =
+          document.createElement("span");
+
+
+        text.textContent =
+          memory;
+
+
+        text.style.flex =
+          "1";
+
+
+        const deleteButton =
+          document.createElement("button");
+
+
+        deleteButton.textContent =
+          "Delete";
+
+
+        deleteButton.style.padding =
+          "7px 10px";
+
+        deleteButton.style.borderRadius =
+          "8px";
+
+        deleteButton.style.border =
+          "1px solid #333";
+
+        deleteButton.style.cursor =
+          "pointer";
+
+
+        deleteButton.addEventListener(
+          "click",
+          () => {
+
+            deleteMemory(
+              index
+            );
+
+          }
+        );
+
+
+        row.appendChild(
+          text
+        );
+
+
+        row.appendChild(
+          deleteButton
+        );
+
+
+        box.appendChild(
+          row
+        );
+
+      }
+    );
+
+  }
+
+
+  /* =====================================
+     CLEAR ALL
+  ====================================== */
+
+  if (
+    novaMemories.length > 0
+  ) {
+
+    const clearButton =
+      document.createElement("button");
+
+
+    clearButton.textContent =
+      "Clear all memories";
+
+
+    clearButton.style.width =
+      "100%";
+
+    clearButton.style.padding =
+      "12px";
+
+    clearButton.style.marginTop =
+      "18px";
+
+    clearButton.style.borderRadius =
+      "10px";
+
+    clearButton.style.border =
+      "1px solid #444";
+
+    clearButton.style.cursor =
+      "pointer";
+
+
+    clearButton.addEventListener(
+      "click",
+      clearAllMemories
+    );
+
+
+    box.appendChild(
+      clearButton
+    );
+
+  }
+
+
+  /* =====================================
+     CLOSE
+  ====================================== */
+
+  const closeButton =
+    document.createElement("button");
+
+
+  closeButton.textContent =
+    "Close";
+
+
+  closeButton.style.width =
+    "100%";
+
+  closeButton.style.padding =
+    "12px";
+
+  closeButton.style.marginTop =
+    "10px";
+
+  closeButton.style.borderRadius =
+    "10px";
+
+  closeButton.style.border =
+    "none";
+
+  closeButton.style.cursor =
+    "pointer";
+
+
+  closeButton.addEventListener(
+    "click",
+    () => {
+
+      panel.remove();
+
+    }
+  );
+
+
+  box.appendChild(
+    closeButton
+  );
+
+
+  panel.appendChild(
+    box
+  );
+
+
+  document.body.appendChild(
+    panel
+  );
+
+}
+
+
+/* =========================================
+   SETTINGS BUTTON
+========================================= */
+
+const sidebarButtons =
+  document.querySelectorAll(
+    ".sidebar-btn"
+  );
+
+
+sidebarButtons.forEach(
+  button => {
+
+    const text =
+      button.textContent
+        .trim()
+        .toLowerCase();
+
+
+    if (
+      text.includes("settings")
+    ) {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          renderMemoryPanel();
+
+        }
+      );
+
+    }
+
+  }
+);
 
 
 /* =========================================
