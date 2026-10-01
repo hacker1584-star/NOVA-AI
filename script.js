@@ -32,7 +32,128 @@ let currentConversationId =
 
 
 /* =========================================
-   SAVE
+   NOVA MEMORY
+========================================= */
+
+let novaMemories =
+  JSON.parse(
+    localStorage.getItem("nova_memories") || "[]"
+  );
+
+
+function saveMemories() {
+
+  localStorage.setItem(
+    "nova_memories",
+    JSON.stringify(novaMemories)
+  );
+
+}
+
+
+function addMemory(memory) {
+
+  memory = memory.trim();
+
+  if (!memory) {
+    return;
+  }
+
+
+  const exists =
+    novaMemories.some(
+      item =>
+        item.toLowerCase() ===
+        memory.toLowerCase()
+    );
+
+
+  if (!exists) {
+
+    novaMemories.push(memory);
+
+    saveMemories();
+
+  }
+
+}
+
+
+function getMemoryContext() {
+
+  if (novaMemories.length === 0) {
+    return "";
+  }
+
+
+  return `
+The following information has been saved as memory about the user:
+
+${novaMemories
+  .map(
+    memory => `- ${memory}`
+  )
+  .join("\n")}
+
+Use these memories when they are relevant to the user's request.
+Do not mention the memory system unless the user asks about it.
+`;
+}
+
+
+/* =========================================
+   AUTOMATIC MEMORY DETECTION
+========================================= */
+
+function detectMemory(userMessage) {
+
+  const patterns = [
+
+    /^my name is (.+)$/i,
+
+    /^i live in (.+)$/i,
+
+    /^i am learning (.+)$/i,
+
+    /^i'm learning (.+)$/i,
+
+    /^my project is called (.+)$/i,
+
+    /^i work on (.+)$/i,
+
+    /^my goal is (.+)$/i,
+
+    /^i want to become (.+)$/i
+
+  ];
+
+
+  for (
+    const pattern of patterns
+  ) {
+
+    const match =
+      userMessage.match(pattern);
+
+
+    if (match) {
+
+      addMemory(userMessage);
+
+      return true;
+
+    }
+
+  }
+
+
+  return false;
+
+}
+
+
+/* =========================================
+   SAVE CONVERSATIONS
 ========================================= */
 
 function saveConversations() {
@@ -42,10 +163,12 @@ function saveConversations() {
     JSON.stringify(conversations)
   );
 
+
   localStorage.setItem(
     "nova_current_conversation",
     currentConversationId || ""
   );
+
 }
 
 
@@ -68,10 +191,15 @@ function createConversation() {
 
   };
 
-  conversations.unshift(conversation);
+
+  conversations.unshift(
+    conversation
+  );
+
 
   currentConversationId =
     conversation.id;
+
 
   saveConversations();
 
@@ -79,8 +207,10 @@ function createConversation() {
 
   clearMessages();
 
+
   welcomeScreen.style.display =
     "flex";
+
 }
 
 
@@ -107,41 +237,51 @@ function renderConversationList() {
 
   conversationList.innerHTML = "";
 
-  conversations.forEach(conversation => {
 
-    const button =
-      document.createElement("button");
+  conversations.forEach(
+    conversation => {
 
-    button.className =
-      "conversation-item";
+      const button =
+        document.createElement("button");
 
-    button.textContent =
-      conversation.title ||
-      "New chat";
 
-    button.addEventListener(
-      "click",
-      () => {
+      button.className =
+        "conversation-item";
 
-        currentConversationId =
-          conversation.id;
 
-        saveConversations();
+      button.textContent =
+        conversation.title ||
+        "New chat";
 
-        loadConversation(
-          conversation
-        );
 
-        closeSidebar();
+      button.addEventListener(
+        "click",
+        () => {
 
-      }
-    );
+          currentConversationId =
+            conversation.id;
 
-    conversationList.appendChild(
-      button
-    );
 
-  });
+          saveConversations();
+
+
+          loadConversation(
+            conversation
+          );
+
+
+          closeSidebar();
+
+        }
+      );
+
+
+      conversationList.appendChild(
+        button
+      );
+
+    }
+  );
 
 }
 
@@ -150,9 +290,12 @@ function renderConversationList() {
    LOAD CONVERSATION
 ========================================= */
 
-function loadConversation(conversation) {
+function loadConversation(
+  conversation
+) {
 
   clearMessages();
+
 
   if (
     !conversation ||
@@ -163,6 +306,7 @@ function loadConversation(conversation) {
       "flex";
 
     return;
+
   }
 
 
@@ -210,12 +354,14 @@ function addMessageToScreen(
   const message =
     document.createElement("div");
 
+
   message.className =
     `message ${role}`;
 
 
   const messageContent =
     document.createElement("div");
+
 
   messageContent.className =
     "message-content";
@@ -224,8 +370,10 @@ function addMessageToScreen(
   const roleLabel =
     document.createElement("span");
 
+
   roleLabel.className =
     "message-role";
+
 
   roleLabel.textContent =
     role === "user"
@@ -236,6 +384,7 @@ function addMessageToScreen(
   const text =
     document.createElement("div");
 
+
   text.textContent =
     content;
 
@@ -244,13 +393,16 @@ function addMessageToScreen(
     roleLabel
   );
 
+
   messageContent.appendChild(
     text
   );
 
+
   message.appendChild(
     messageContent
   );
+
 
   messagesContainer.appendChild(
     message
@@ -278,9 +430,6 @@ async function sendMessage() {
     getCurrentConversation();
 
 
-  // Create a conversation automatically
-  // if none exists.
-
   if (!conversation) {
 
     createConversation();
@@ -291,13 +440,26 @@ async function sendMessage() {
   }
 
 
-  // Hide welcome screen
+  /* ================================
+     MEMORY DETECTION
+  ================================= */
+
+  detectMemory(
+    userMessage
+  );
+
+
+  /* ================================
+     HIDE WELCOME
+  ================================= */
 
   welcomeScreen.style.display =
     "none";
 
 
-  // Add user message
+  /* ================================
+     ADD USER MESSAGE
+  ================================= */
 
   conversation.messages.push({
 
@@ -314,7 +476,9 @@ async function sendMessage() {
   );
 
 
-  // Update conversation title
+  /* ================================
+     CONVERSATION TITLE
+  ================================= */
 
   if (
     conversation.title ===
@@ -323,7 +487,10 @@ async function sendMessage() {
 
     conversation.title =
       userMessage.length > 30
-        ? userMessage.substring(0, 30) + "..."
+        ? userMessage.substring(
+            0,
+            30
+          ) + "..."
         : userMessage;
 
   }
@@ -334,7 +501,9 @@ async function sendMessage() {
   renderConversationList();
 
 
-  // Clear input
+  /* ================================
+     CLEAR INPUT
+  ================================= */
 
   messageInput.value = "";
 
@@ -345,7 +514,9 @@ async function sendMessage() {
   scrollToBottom();
 
 
-  // Ask NOVA
+  /* ================================
+     ASK NOVA
+  ================================= */
 
   await generateLocalResponse(
     userMessage
@@ -371,13 +542,17 @@ async function generateLocalResponse(
   }
 
 
-  // Loading message
+  /* ================================
+     LOADING MESSAGE
+  ================================= */
 
   const loadingMessage =
     document.createElement("div");
 
+
   loadingMessage.className =
     "message ai";
+
 
   loadingMessage.id =
     "nova-loading";
@@ -385,6 +560,7 @@ async function generateLocalResponse(
 
   const loadingContent =
     document.createElement("div");
+
 
   loadingContent.className =
     "message-content";
@@ -411,6 +587,36 @@ async function generateLocalResponse(
 
   try {
 
+    /* ================================
+       BUILD REQUEST
+    ================================= */
+
+    const memoryContext =
+      getMemoryContext();
+
+
+    const messagesForAI = [
+
+      ...(memoryContext
+        ? [
+            {
+              role: "system",
+
+              content:
+                memoryContext
+            }
+          ]
+        : []),
+
+      ...conversation.messages
+
+    ];
+
+
+    /* ================================
+       API REQUEST
+    ================================= */
+
     const response =
       await fetch(
         "/api/chat",
@@ -429,7 +635,7 @@ async function generateLocalResponse(
             JSON.stringify({
 
               messages:
-                conversation.messages
+                messagesForAI
 
             })
 
@@ -441,19 +647,24 @@ async function generateLocalResponse(
       await response.json();
 
 
-    // Remove loading message
+    /* ================================
+       REMOVE LOADING
+    ================================= */
 
     const loading =
       document.getElementById(
         "nova-loading"
       );
 
+
     if (loading) {
       loading.remove();
     }
 
 
-    // Backend error
+    /* ================================
+       API ERROR
+    ================================= */
 
     if (!response.ok) {
 
@@ -464,6 +675,10 @@ async function generateLocalResponse(
 
     }
 
+
+    /* ================================
+       GET ANSWER
+    ================================= */
 
     const answer =
       data.answer;
@@ -478,7 +693,9 @@ async function generateLocalResponse(
     }
 
 
-    // Save NOVA response
+    /* ================================
+       SAVE NOVA MESSAGE
+    ================================= */
 
     conversation.messages.push({
 
@@ -489,7 +706,9 @@ async function generateLocalResponse(
     });
 
 
-    // Display NOVA response
+    /* ================================
+       DISPLAY NOVA
+    ================================= */
 
     addMessageToScreen(
       "ai",
@@ -516,6 +735,7 @@ async function generateLocalResponse(
       document.getElementById(
         "nova-loading"
       );
+
 
     if (loading) {
       loading.remove();
@@ -587,26 +807,31 @@ sendBtn.addEventListener(
    STARTER CARDS
 ========================================= */
 
-starterCards.forEach(card => {
+starterCards.forEach(
+  card => {
 
-  card.addEventListener(
-    "click",
-    () => {
+    card.addEventListener(
+      "click",
+      () => {
 
-      const prompt =
-        card.dataset.prompt;
+        const prompt =
+          card.dataset.prompt;
 
-      messageInput.value =
-        prompt;
 
-      messageInput.focus();
+        messageInput.value =
+          prompt;
 
-      sendMessage();
 
-    }
-  );
+        messageInput.focus();
 
-});
+
+        sendMessage();
+
+      }
+    );
+
+  }
+);
 
 
 /* =========================================
@@ -636,6 +861,7 @@ messageInput.addEventListener(
     messageInput.style.height =
       "auto";
 
+
     messageInput.style.height =
       Math.min(
         messageInput.scrollHeight,
@@ -656,6 +882,7 @@ function openSidebar() {
     "open"
   );
 
+
   sidebarOverlay.classList.add(
     "active"
   );
@@ -668,6 +895,7 @@ function closeSidebar() {
   sidebar.classList.remove(
     "open"
   );
+
 
   sidebarOverlay.classList.remove(
     "active"
@@ -701,7 +929,7 @@ function scrollToBottom() {
 
 
 /* =========================================
-   INITIALIZE
+   INITIALIZE NOVA
 ========================================= */
 
 function initializeNOVA() {
