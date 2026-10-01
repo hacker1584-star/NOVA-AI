@@ -2,20 +2,105 @@
    NOVA AI — FRONTEND
 ========================================= */
 
-const messageInput = document.getElementById("messageInput");
-const sendBtn = document.getElementById("sendBtn");
-const messagesContainer = document.getElementById("messages");
-const welcomeScreen = document.getElementById("welcomeScreen");
+const messageInput =
+  document.getElementById("messageInput");
 
-const newChatBtn = document.getElementById("newChatBtn");
-const conversationList = document.getElementById("conversationList");
+const sendBtn =
+  document.getElementById("sendBtn");
 
-const menuBtn = document.getElementById("menuBtn");
-const sidebar = document.getElementById("sidebar");
-const sidebarOverlay = document.getElementById("sidebarOverlay");
+const messagesContainer =
+  document.getElementById("messages");
+
+const welcomeScreen =
+  document.getElementById("welcomeScreen");
+
+const newChatBtn =
+  document.getElementById("newChatBtn");
+
+const conversationList =
+  document.getElementById("conversationList");
+
+const menuBtn =
+  document.getElementById("menuBtn");
+
+const sidebar =
+  document.getElementById("sidebar");
+
+const sidebarOverlay =
+  document.getElementById("sidebarOverlay");
+
+const themeToggle =
+  document.getElementById("themeToggle");
 
 const starterCards =
   document.querySelectorAll(".starter-card");
+
+
+/* =========================================
+   THEME
+========================================= */
+
+function applyTheme(theme) {
+
+  if (theme === "light") {
+
+    document.body.classList.add("light");
+
+    if (themeToggle) {
+      themeToggle.textContent = "☀";
+    }
+
+  } else {
+
+    document.body.classList.remove("light");
+
+    if (themeToggle) {
+      themeToggle.textContent = "☾";
+    }
+
+  }
+
+}
+
+
+const savedTheme =
+  localStorage.getItem("nova_theme") ||
+  "dark";
+
+
+applyTheme(savedTheme);
+
+
+if (themeToggle) {
+
+  themeToggle.addEventListener(
+    "click",
+    () => {
+
+      const isLight =
+        document.body.classList.contains(
+          "light"
+        );
+
+
+      const newTheme =
+        isLight
+          ? "dark"
+          : "light";
+
+
+      localStorage.setItem(
+        "nova_theme",
+        newTheme
+      );
+
+
+      applyTheme(newTheme);
+
+    }
+  );
+
+}
 
 
 /* =========================================
@@ -24,11 +109,15 @@ const starterCards =
 
 let conversations =
   JSON.parse(
-    localStorage.getItem("nova_conversations") || "[]"
+    localStorage.getItem(
+      "nova_conversations"
+    ) || "[]"
   );
 
 let currentConversationId =
-  localStorage.getItem("nova_current_conversation");
+  localStorage.getItem(
+    "nova_current_conversation"
+  );
 
 
 /* =========================================
@@ -37,7 +126,9 @@ let currentConversationId =
 
 let novaMemories =
   JSON.parse(
-    localStorage.getItem("nova_memories") || "[]"
+    localStorage.getItem(
+      "nova_memories"
+    ) || "[]"
   );
 
 
@@ -116,7 +207,9 @@ function deleteMemory(index) {
 
 function clearAllMemories() {
 
-  if (novaMemories.length === 0) {
+  if (
+    novaMemories.length === 0
+  ) {
     return;
   }
 
@@ -161,7 +254,8 @@ The following information has been saved as memory about the user:
 
 ${novaMemories
   .map(
-    memory => `- ${memory}`
+    memory =>
+      `- ${memory}`
   )
   .join("\n")}
 
@@ -204,12 +298,16 @@ function detectMemory(userMessage) {
   ) {
 
     const match =
-      userMessage.match(pattern);
+      userMessage.match(
+        pattern
+      );
 
 
     if (match) {
 
-      addMemory(userMessage);
+      addMemory(
+        userMessage
+      );
 
       return true;
 
@@ -231,7 +329,9 @@ function saveConversations() {
 
   localStorage.setItem(
     "nova_conversations",
-    JSON.stringify(conversations)
+    JSON.stringify(
+      conversations
+    )
   );
 
 
@@ -306,14 +406,17 @@ function getCurrentConversation() {
 
 function renderConversationList() {
 
-  conversationList.innerHTML = "";
+  conversationList.innerHTML =
+    "";
 
 
   conversations.forEach(
     conversation => {
 
       const button =
-        document.createElement("button");
+        document.createElement(
+          "button"
+        );
 
 
       button.className =
@@ -408,7 +511,8 @@ function loadConversation(
 
 function clearMessages() {
 
-  messagesContainer.innerHTML = "";
+  messagesContainer.innerHTML =
+    "";
 
 }
 
@@ -423,7 +527,9 @@ function addMessageToScreen(
 ) {
 
   const message =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
 
   message.className =
@@ -431,7 +537,9 @@ function addMessageToScreen(
 
 
   const messageContent =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
 
   messageContent.className =
@@ -439,7 +547,9 @@ function addMessageToScreen(
 
 
   const roleLabel =
-    document.createElement("span");
+    document.createElement(
+      "span"
+    );
 
 
   roleLabel.className =
@@ -453,7 +563,9 @@ function addMessageToScreen(
 
 
   const text =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
 
   text.textContent =
@@ -534,9 +646,11 @@ async function sendMessage() {
 
   conversation.messages.push({
 
-    role: "user",
+    role:
+      "user",
 
-    content: userMessage
+    content:
+      userMessage
 
   });
 
@@ -576,7 +690,8 @@ async function sendMessage() {
      CLEAR INPUT
   ================================= */
 
-  messageInput.value = "";
+  messageInput.value =
+    "";
 
   messageInput.style.height =
     "auto";
@@ -618,7 +733,9 @@ async function generateLocalResponse(
   ================================= */
 
   const loadingMessage =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
 
   loadingMessage.className =
@@ -630,7 +747,9 @@ async function generateLocalResponse(
 
 
   const loadingContent =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
 
   loadingContent.className =
@@ -671,10 +790,12 @@ async function generateLocalResponse(
       ...(memoryContext
         ? [
             {
-              role: "system",
+              role:
+                "system",
 
               content:
                 memoryContext
+
             }
           ]
         : []),
@@ -693,7 +814,8 @@ async function generateLocalResponse(
         "/api/chat",
         {
 
-          method: "POST",
+          method:
+            "POST",
 
           headers: {
 
@@ -770,9 +892,11 @@ async function generateLocalResponse(
 
     conversation.messages.push({
 
-      role: "ai",
+      role:
+        "ai",
 
-      content: answer
+      content:
+        answer
 
     });
 
@@ -819,9 +943,11 @@ async function generateLocalResponse(
 
     conversation.messages.push({
 
-      role: "ai",
+      role:
+        "ai",
 
-      content: errorMessage
+      content:
+        errorMessage
 
     });
 
@@ -859,7 +985,9 @@ function renderMemoryPanel() {
 
 
   const panel =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
 
   panel.id =
@@ -901,7 +1029,9 @@ function renderMemoryPanel() {
 
 
   const box =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
 
   box.style.width =
@@ -933,7 +1063,9 @@ function renderMemoryPanel() {
 
 
   const title =
-    document.createElement("h2");
+    document.createElement(
+      "h2"
+    );
 
 
   title.textContent =
@@ -945,7 +1077,9 @@ function renderMemoryPanel() {
 
 
   const description =
-    document.createElement("p");
+    document.createElement(
+      "p"
+    );
 
 
   description.textContent =
@@ -969,7 +1103,9 @@ function renderMemoryPanel() {
   ====================================== */
 
   const addButton =
-    document.createElement("button");
+    document.createElement(
+      "button"
+    );
 
 
   addButton.textContent =
@@ -1033,7 +1169,9 @@ function renderMemoryPanel() {
   ) {
 
     const empty =
-      document.createElement("p");
+      document.createElement(
+        "p"
+      );
 
 
     empty.textContent =
@@ -1053,7 +1191,9 @@ function renderMemoryPanel() {
       (memory, index) => {
 
         const row =
-          document.createElement("div");
+          document.createElement(
+            "div"
+          );
 
 
         row.style.display =
@@ -1076,7 +1216,9 @@ function renderMemoryPanel() {
 
 
         const text =
-          document.createElement("span");
+          document.createElement(
+            "span"
+          );
 
 
         text.textContent =
@@ -1088,7 +1230,9 @@ function renderMemoryPanel() {
 
 
         const deleteButton =
-          document.createElement("button");
+          document.createElement(
+            "button"
+          );
 
 
         deleteButton.textContent =
@@ -1149,7 +1293,9 @@ function renderMemoryPanel() {
   ) {
 
     const clearButton =
-      document.createElement("button");
+      document.createElement(
+        "button"
+      );
 
 
     clearButton.textContent =
@@ -1193,7 +1339,9 @@ function renderMemoryPanel() {
   ====================================== */
 
   const closeButton =
-    document.createElement("button");
+    document.createElement(
+      "button"
+    );
 
 
   closeButton.textContent =
