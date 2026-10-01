@@ -287,37 +287,163 @@ function sendMessage() {
 // LOCAL AI PLACEHOLDER
 // =====================================
 
-function generateLocalResponse(userMessage) {
+async function generateLocalResponse(userMessage) {
 
-  const conversation =
-    getCurrentConversation();
+  const conversation = getCurrentConversation();
 
-  setTimeout(() => {
+  if (!conversation) return;
+
+
+  // Show loading message
+
+  const loadingMessage =
+    document.createElement("div");
+
+  loadingMessage.className =
+    "message ai";
+
+  loadingMessage.id =
+    "nova-loading";
+
+
+  const loadingContent =
+    document.createElement("div");
+
+  loadingContent.className =
+    "message-content";
+
+
+  loadingContent.innerHTML = `
+    <span class="message-role">NOVA</span>
+    <div>NOVA is thinking...</div>
+  `;
+
+
+  loadingMessage.appendChild(
+    loadingContent
+  );
+
+  messagesContainer.appendChild(
+    loadingMessage
+  );
+
+  scrollToBottom();
+
+
+  try {
 
     const response =
-      createTemporaryResponse(userMessage);
+      await fetch("/api/chat", {
+
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+          messages: conversation.messages
+        })
+
+      });
+
+
+    const data =
+      await response.json();
+
+
+    // Remove loading message
+
+    const loading =
+      document.getElementById(
+        "nova-loading"
+      );
+
+    if (loading) {
+      loading.remove();
+    }
+
+
+    // Check for backend error
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.error ||
+        "NOVA backend returned an error."
+      );
+
+    }
+
+
+    const answer =
+      data.answer;
+
+
+    // Save NOVA response
+
+    conversation.messages.push({
+
+      role: "ai",
+
+      content: answer
+
+    });
+
+
+    // Display NOVA response
+
+    addMessageToScreen(
+      "ai",
+      answer
+    );
+
+
+    saveConversations();
+
+
+  } catch (error) {
+
+    console.error(
+      "NOVA error:",
+      error
+    );
+
+
+    const loading =
+      document.getElementById(
+        "nova-loading"
+      );
+
+    if (loading) {
+      loading.remove();
+    }
+
+
+    const errorMessage =
+      "I couldn't connect to the NOVA AI service right now. Please try again.";
 
 
     conversation.messages.push({
 
       role: "ai",
 
-      content: response
+      content: errorMessage
 
     });
 
 
     addMessageToScreen(
       "ai",
-      response
+      errorMessage
     );
 
 
     saveConversations();
 
-  }, 500);
-}
+  }
 
+}
 
 // =====================================
 // TEMPORARY RESPONSE ENGINE
