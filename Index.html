@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>NOVA AI</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- =====================================
+       SIDEBAR
+  ====================================== -->
+
+  <aside class="sidebar" id="sidebar">
+
+    <div class="sidebar-top">
+
+      <div class="brand">
+        <div class="brand-icon">✦</div>
+
+        <div>
+          <strong>NOVA</strong>
+          <span>AI</span>
+        </div>
+      </div>
+
+      <button
+        class="new-chat-btn"
+        id="newChatBtn"
+      >
+        <span>＋</span>
+        New chat
+      </button>
+
+    </div>
+
+
+    <div class="conversation-section">
+
+      <p class="sidebar-label">
+        RECENT
+      </p>
+
+      <div id="conversationList">
+        <!-- Conversations will appear here -->
+      </div>
+
+    </div>
+
+
+    <div class="sidebar-bottom">
+
+      <button class="sidebar-btn">
+        ⚙
+        <span>Settings</span>
+      </button>
+
+      <button class="sidebar-btn">
+        ?
+        <span>Help</span>
+      </button>
+
+    </div>
+
+  </aside>
+
+
+
+  <!-- =====================================
+       MAIN APPLICATION
+  ====================================== -->
+
+  <main class="app">
+
+    <!-- TOP BAR -->
+
+    <header class="topbar">
+
+      <button
+        class="menu-btn"
+        id="menuBtn"
+        aria-label="Open menu"
+      >
+        ☰
+      </button>
+
+      <div class="mobile-brand">
+        <span>✦</span>
+        NOVA
+      </div>
+
+      <div class="model-label">
+        NOVA AI
+      </div>
+
+    </header>
+
+
+
+    <!-- =====================================
+         CHAT
+    ====================================== -->
+
+    <section class="chat-container">
+
+      <!-- WELCOME -->
+
+      <div
+        class="welcome-screen"
+        id="welcomeScreen"
+      >
+
+        <div class="welcome-icon">
+          ✦
+        </div>
+
+        <h1>
+          How can I help?
+        </h1>
+
+        <p>
+          I'm NOVA, your AI workspace.
+          Ask a question, solve a problem,
+          or start building something.
+        </p>
+
+
+        <!-- STARTER CARDS -->
+
+        <div class="starter-grid">
+
+          <button
+            class="starter-card"
+            data-prompt="Explain something to me simply"
+          >
+
+            <span>◈</span>
+
+            <div>
+              <strong>Explain something</strong>
+
+              <small>
+                Make a difficult topic simple
+              </small>
+            </div>
+
+          </button>
+
+
+          <button
+            class="starter-card"
+            data-prompt="Help me write code"
+          >
+
+            <span>{ }</span>
+
+            <div>
+              <strong>Write code</strong>
+
+              <small>
+                Build or fix a program
+              </small>
+            </div>
+
+          </button>
+
+
+          <button
+            class="starter-card"
+            data-prompt="Help me analyze a problem"
+          >
+
+            <span>⌁</span>
+
+            <div>
+              <strong>Analyze</strong>
+
+              <small>
+                Break down a problem
+              </small>
+            </div>
+
+          </button>
+
+
+          <button
+            class="starter-card"
+            data-prompt="Help me create a plan"
+          >
+
+            <span>◇</span>
+
+            <div>
+              <strong>Create a plan</strong>
+
+              <small>
+                Turn an idea into steps
+              </small>
+            </div>
+
+          </button>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- MESSAGES -->
+
+      <div
+        class="messages"
+        id="messages"
+      >
+        <!-- Messages will be inserted here -->
+      </div>
+
+    </section>
+
+
+
+    <!-- =====================================
+         INPUT
+    ====================================== -->
+
+    <section class="composer-area">
+
+      <div class="composer">
+
+        <textarea
+          id="messageInput"
+          rows="1"
+          placeholder="Message NOVA..."
+          autocomplete="off"
+        ></textarea>
+
+        <button
+          id="sendBtn"
+          class="send-btn"
+          aria-label="Send message"
+        >
+          ↑
+        </button>
+
+      </div>
+
+      <p class="composer-note">
+        NOVA can make mistakes. Check important information.
+      </p>
+
+    </section>
+
+  </main>
+
+
+
+  <!-- =====================================
+       MOBILE OVERLAY
+  ====================================== -->
+
+  <div
+    class="sidebar-overlay"
+    id="sidebarOverlay"
+  ></div>
+
+
+
+  <script src="script.js"></script>
+
+</body>
+</html>
