@@ -1,462 +1,1105 @@
 /* =========================================
-   NOVA AI — FRONTEND
+   NOVA AI — FRONTEND + SUPABASE
 ========================================= */
 
-const messageInput =
-  document.getElementById("messageInput");
 
-const sendBtn =
-  document.getElementById("sendBtn");
+/* =========================================
+   DOM
+========================================= */
 
-const messagesContainer =
-  document.getElementById("messages");
+const messageInput = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+const messagesContainer = document.getElementById("messages");
+const welcomeScreen = document.getElementById("welcomeScreen");
 
-const welcomeScreen =
-  document.getElementById("welcomeScreen");
+const newChatBtn = document.getElementById("newChatBtn");
+const conversationList = document.getElementById("conversationList");
 
-const newChatBtn =
-  document.getElementById("newChatBtn");
+const menuBtn = document.getElementById("menuBtn");
+const sidebar = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebarOverlay");
 
-const conversationList =
-  document.getElementById("conversationList");
+const themeToggle = document.getElementById("themeToggle");
+const starterCards = document.querySelectorAll(".starter-card");
 
-const menuBtn =
-  document.getElementById("menuBtn");
 
-const sidebar =
-  document.getElementById("sidebar");
+/* =========================================
+   SUPABASE
+========================================= */
 
-const sidebarOverlay =
-  document.getElementById("sidebarOverlay");
+let supabaseClient = null;
+let currentUser = null;
+let supabaseReady = false;
 
-const themeToggle =
-  document.getElementById("themeToggle");
 
-const starterCards =
-  document.querySelectorAll(".starter-card");
+/* =========================================
+   APP STATE
+========================================= */
+
+let conversations = [];
+let currentConversationId = null;
+
+let novaMemories = [];
+
+let isSending = false;
 
 
 /* =========================================
    THEME
 ========================================= */
 
-function applyTheme(theme) {
+function loadTheme() {
+    const savedTheme = localStorage.getItem("nova_theme");
 
-  if (theme === "light") {
-
-    document.body.classList.add("light");
-
-    if (themeToggle) {
-      themeToggle.textContent = "☀";
+    if (savedTheme === "light") {
+        document.body.classList.add("light-theme");
+    } else {
+        document.body.classList.remove("light-theme");
     }
+}
 
-  } else {
+function toggleTheme() {
+    document.body.classList.toggle("light-theme");
 
-    document.body.classList.remove("light");
+    const theme = document.body.classList.contains("light-theme")
+        ? "light"
+        : "dark";
 
-    if (themeToggle) {
-      themeToggle.textContent = "☾";
-    }
+    localStorage.setItem("nova_theme", theme);
+}
 
-  }
+loadTheme();
 
+if (themeToggle) {
+    themeToggle.addEventListener("click", toggleTheme);
 }
 
 
-const savedTheme =
-  localStorage.getItem("nova_theme") ||
-  "dark";
+/* =========================================
+   SUPABASE CONFIG
+========================================= */
+
+async function initializeSupabase() {
+    try {
+        const response = await fetch("/api/config");
+
+        if (!response.ok) {
+            throw new Error("Could not load Supabase configuration.");
+        }
+
+        const config = await response.json();
+
+        if (!config.supabaseUrl || !config.supabasePublishableKey) {
+            throw new Error("Supabase configuration is missing.");
+        }
+
+        if (typeof supabase === "undefined") {
+            throw new Error("Supabase library did not load.");
+        }
+
+        supabaseClient = supabase.createClient(
+            config.supabaseUrl,
+            config.supabasePublishableKey
+        );
+
+        supabaseReady = true;
+
+        console.log("NOVA: Supabase connected.");
+
+        const {
+            data: { session }
+        } = await supabaseClient.auth.getSession();
+
+        if (session && session.user) {
+            currentUser = session.user;
+
+            await loadUserData();
+
+            hideAuthScreen();
+
+            initializeNOVA();
+        } else {
+            showAuthScreen();
+        }
+
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            console.log("NOVA auth event:", event);
+
+            if (session && session.user) {
+                currentUser = session.user;
+
+                await loadUserData();
+
+                hideAuthScreen();
+
+                initializeNOVA();
+            } else {
+                currentUser = null;
+                conversations = [];
+                novaMemories = [];
+                currentConversationId = null;
+
+                showAuthScreen();
+            }
+        });
+
+    } catch (error) {
+        console.error("Supabase initialization error:", error);
+
+        showConfigError(error.message);
+    }
+}
 
 
-applyTheme(savedTheme);
+/* =========================================
+   AUTH UI
+========================================= */
+
+let authScreen = null;
+
+function createAuthScreen() {
+    if (authScreen) return;
+
+    authScreen = document.createElement("div");
+
+    authScreen.id = "novaAuthScreen";
+
+    authScreen.innerHTML = `
+        <div class="nova-auth-box">
+
+            <div class="nova-auth-logo">
+                ✦
+            </div>
+
+            <h1>NOVA<span>AI</span></h1>
+
+            <p class="nova-auth-subtitle">
+                Your AI workspace
+            </p>
+
+            <div class="nova-auth-tabs">
+                <button id="novaLoginTab" class="nova-auth-tab active">
+                    Login
+                </button>
+
+                <button id="novaSignupTab" class="nova-auth-tab">
+                    Sign up
+                </button>
+            </div>
+
+            <form id="novaAuthForm">
+
+                <input
+                    id="novaAuthEmail"
+                    type="email"
+                    placeholder="Email address"
+                    autocomplete="email"
+                    required
+                >
+
+                <input
+                    id="novaAuthPassword"
+                    type="password"
+                    placeholder="Password"
+                    autocomplete="current-password"
+                    required
+                >
+
+                <input
+                    id="novaAuthName"
+                    type="text"
+                    placeholder="Your name"
+                    autocomplete="name"
+                    style="display:none;"
+                >
+
+                <button
+                    id="novaAuthSubmit"
+                    type="submit"
+                >
+                    Login
+                </button>
+
+            </form>
+
+            <p id="novaAuthMessage" class="nova-auth-message"></p>
+
+            <p class="nova-auth-footer">
+                By continuing, you agree to use NOVA responsibly.
+            </p>
+
+        </div>
+    `;
+
+    document.body.appendChild(authScreen);
+
+    addAuthStyles();
+
+    const loginTab = document.getElementById("novaLoginTab");
+    const signupTab = document.getElementById("novaSignupTab");
+    const form = document.getElementById("novaAuthForm");
+    const nameInput = document.getElementById("novaAuthName");
+    const submitButton = document.getElementById("novaAuthSubmit");
+
+    let authMode = "login";
+
+    loginTab.addEventListener("click", () => {
+        authMode = "login";
+
+        loginTab.classList.add("active");
+        signupTab.classList.remove("active");
+
+        nameInput.style.display = "none";
+        nameInput.required = false;
+
+        submitButton.textContent = "Login";
+
+        clearAuthMessage();
+    });
+
+    signupTab.addEventListener("click", () => {
+        authMode = "signup";
+
+        signupTab.classList.add("active");
+        loginTab.classList.remove("active");
+
+        nameInput.style.display = "block";
+        nameInput.required = true;
+
+        submitButton.textContent = "Create account";
+
+        clearAuthMessage();
+    });
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const email = document
+            .getElementById("novaAuthEmail")
+            .value
+            .trim();
+
+        const password = document
+            .getElementById("novaAuthPassword")
+            .value;
+
+        const name = nameInput.value.trim();
+
+        if (!email || !password) {
+            showAuthMessage(
+                "Enter your email and password.",
+                "error"
+            );
+
+            return;
+        }
+
+        if (password.length < 6) {
+            showAuthMessage(
+                "Password must be at least 6 characters.",
+                "error"
+            );
+
+            return;
+        }
+
+        submitButton.disabled = true;
+
+        submitButton.textContent =
+            authMode === "login"
+                ? "Logging in..."
+                : "Creating account...";
+
+        clearAuthMessage();
+
+        try {
+            if (authMode === "login") {
+                const { error } =
+                    await supabaseClient.auth.signInWithPassword({
+                        email,
+                        password
+                    });
+
+                if (error) {
+                    throw error;
+                }
+
+                showAuthMessage(
+                    "Login successful.",
+                    "success"
+                );
+
+            } else {
+                const { data, error } =
+                    await supabaseClient.auth.signUp({
+                        email,
+                        password
+                    });
+
+                if (error) {
+                    throw error;
+                }
+
+                if (data.user) {
+                    await createOrUpdateProfile(
+                        data.user,
+                        name || email.split("@")[0]
+                    );
+                }
+
+                if (!data.session) {
+                    showAuthMessage(
+                        "Account created. Check your email to confirm your account, then log in.",
+                        "success"
+                    );
+                } else {
+                    showAuthMessage(
+                        "Account created successfully.",
+                        "success"
+                    );
+                }
+            }
+
+        } catch (error) {
+            console.error("Authentication error:", error);
+
+            showAuthMessage(
+                getFriendlyAuthError(error),
+                "error"
+            );
+
+        } finally {
+            submitButton.disabled = false;
+
+            submitButton.textContent =
+                authMode === "login"
+                    ? "Login"
+                    : "Create account";
+        }
+    });
+}
 
 
-if (themeToggle) {
+/* =========================================
+   AUTH STYLES
+========================================= */
 
-  themeToggle.addEventListener(
-    "click",
-    () => {
+function addAuthStyles() {
 
-      const isLight =
-        document.body.classList.contains(
-          "light"
+    if (document.getElementById("novaAuthStyles")) {
+        return;
+    }
+
+    const style = document.createElement("style");
+
+    style.id = "novaAuthStyles";
+
+    style.textContent = `
+        #novaAuthScreen {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: #050505;
+            color: white;
+            overflow-y: auto;
+        }
+
+        .nova-auth-box {
+            width: 100%;
+            max-width: 420px;
+            padding: 34px 26px;
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 22px;
+            background: rgba(15,15,15,.96);
+            box-shadow: 0 25px 80px rgba(0,0,0,.45);
+            text-align: center;
+        }
+
+        .nova-auth-logo {
+            width: 54px;
+            height: 54px;
+            margin: 0 auto 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            background: rgba(255,255,255,.08);
+            font-size: 28px;
+        }
+
+        .nova-auth-box h1 {
+            margin: 0;
+            font-size: 28px;
+            letter-spacing: .5px;
+        }
+
+        .nova-auth-box h1 span {
+            opacity: .55;
+        }
+
+        .nova-auth-subtitle {
+            margin: 8px 0 25px;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .nova-auth-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .nova-auth-tab {
+            flex: 1;
+            border: 1px solid rgba(255,255,255,.10);
+            background: rgba(255,255,255,.04);
+            color: #aaa;
+            padding: 11px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .nova-auth-tab.active {
+            background: rgba(255,255,255,.12);
+            color: white;
+        }
+
+        #novaAuthForm {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #novaAuthForm input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,.10);
+            background: rgba(255,255,255,.05);
+            color: white;
+            padding: 14px;
+            border-radius: 10px;
+            outline: none;
+            font-size: 15px;
+        }
+
+        #novaAuthForm input:focus {
+            border-color: rgba(255,255,255,.30);
+        }
+
+        #novaAuthSubmit {
+            border: 0;
+            background: white;
+            color: black;
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        #novaAuthSubmit:disabled {
+            opacity: .55;
+            cursor: wait;
+        }
+
+        .nova-auth-message {
+            min-height: 22px;
+            margin: 15px 0 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .nova-auth-message.error {
+            color: #ff8585;
+        }
+
+        .nova-auth-message.success {
+            color: #8de6a4;
+        }
+
+        .nova-auth-footer {
+            margin: 22px 0 0;
+            color: #666;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 480px) {
+            .nova-auth-box {
+                padding: 28px 20px;
+            }
+        }
+    `;
+
+    document.head.appendChild(style);
+}
+
+
+/* =========================================
+   AUTH SCREEN FUNCTIONS
+========================================= */
+
+function showAuthScreen() {
+    createAuthScreen();
+
+    authScreen.style.display = "flex";
+
+    document.body.style.overflow = "hidden";
+}
+
+function hideAuthScreen() {
+    createAuthScreen();
+
+    authScreen.style.display = "none";
+
+    document.body.style.overflow = "";
+}
+
+function showAuthMessage(message, type) {
+    const element =
+        document.getElementById("novaAuthMessage");
+
+    if (!element) return;
+
+    element.textContent = message;
+    element.className =
+        `nova-auth-message ${type || ""}`;
+}
+
+function clearAuthMessage() {
+    const element =
+        document.getElementById("novaAuthMessage");
+
+    if (!element) return;
+
+    element.textContent = "";
+    element.className = "nova-auth-message";
+}
+
+function showConfigError(message) {
+    showAuthScreen();
+
+    showAuthMessage(
+        "NOVA could not connect to its account system. Check the Vercel deployment and /api/config.",
+        "error"
+    );
+
+    console.error(message);
+}
+
+function getFriendlyAuthError(error) {
+
+    const message =
+        error?.message ||
+        "Something went wrong.";
+
+    if (
+        message.toLowerCase().includes("invalid login credentials")
+    ) {
+        return "Incorrect email or password.";
+    }
+
+    if (
+        message.toLowerCase().includes("user already registered")
+    ) {
+        return "An account with this email already exists. Try logging in.";
+    }
+
+    if (
+        message.toLowerCase().includes("email not confirmed")
+    ) {
+        return "Please confirm your email before logging in.";
+    }
+
+    if (
+        message.toLowerCase().includes("password should be at least")
+    ) {
+        return "Your password must be at least 6 characters.";
+    }
+
+    return message;
+}
+
+
+/* =========================================
+   PROFILE
+========================================= */
+
+async function createOrUpdateProfile(user, displayName) {
+
+    if (!supabaseClient || !user) return;
+
+    const { error } =
+        await supabaseClient
+            .from("profiles")
+            .upsert(
+                {
+                    id: user.id,
+                    display_name: displayName || null
+                },
+                {
+                    onConflict: "id"
+                }
+            );
+
+    if (error) {
+        console.error(
+            "Profile error:",
+            error
+        );
+    }
+}
+
+
+/* =========================================
+   LOAD USER DATA
+========================================= */
+
+async function loadUserData() {
+
+    if (!currentUser || !supabaseClient) {
+        return;
+    }
+
+    try {
+
+        await createOrUpdateProfile(
+            currentUser,
+            currentUser.user_metadata?.display_name ||
+            currentUser.email?.split("@")[0] ||
+            "NOVA User"
         );
 
 
-      const newTheme =
-        isLight
-          ? "dark"
-          : "light";
+        /* -------------------------------
+           LOAD CONVERSATIONS
+        -------------------------------- */
+
+        const {
+            data: conversationData,
+            error: conversationError
+        } = await supabaseClient
+            .from("conversations")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order("updated_at", {
+                ascending: false
+            });
+
+        if (conversationError) {
+            throw conversationError;
+        }
+
+        conversations = [];
+
+        for (const conversation of conversationData || []) {
+
+            const {
+                data: messageData,
+                error: messageError
+            } = await supabaseClient
+                .from("messages")
+                .select("*")
+                .eq("conversation_id", conversation.id)
+                .eq("user_id", currentUser.id)
+                .order("created_at", {
+                    ascending: true
+                });
+
+            if (messageError) {
+                console.error(
+                    "Message loading error:",
+                    messageError
+                );
+
+                continue;
+            }
+
+            conversations.push({
+                id: conversation.id,
+                title: conversation.title || "New chat",
+                createdAt: conversation.created_at,
+                updatedAt: conversation.updated_at,
+                messages: (messageData || []).map(message => ({
+                    role:
+                        message.role === "assistant"
+                            ? "ai"
+                            : message.role,
+                    content: message.content
+                }))
+            });
+        }
 
 
-      localStorage.setItem(
-        "nova_theme",
-        newTheme
-      );
+        /* -------------------------------
+           LOAD MEMORIES
+        -------------------------------- */
+
+        const {
+            data: memoryData,
+            error: memoryError
+        } = await supabaseClient
+            .from("memories")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order("created_at", {
+                ascending: false
+            });
+
+        if (memoryError) {
+            throw memoryError;
+        }
+
+        novaMemories = (memoryData || []).map(memory => ({
+            id: memory.id,
+            content: memory.content,
+            createdAt: memory.created_at,
+            updatedAt: memory.updated_at
+        }));
 
 
-      applyTheme(newTheme);
+        /* -------------------------------
+           SELECT MOST RECENT CHAT
+        -------------------------------- */
 
+        if (conversations.length > 0) {
+            currentConversationId =
+                conversations[0].id;
+        } else {
+            currentConversationId = null;
+        }
+
+        renderConversationList();
+
+        if (currentConversationId) {
+            loadConversation(currentConversationId);
+        } else {
+            clearMessages();
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Could not load NOVA user data:",
+            error
+        );
     }
-  );
-
 }
 
 
 /* =========================================
-   STATE
-========================================= */
-
-let conversations =
-  JSON.parse(
-    localStorage.getItem(
-      "nova_conversations"
-    ) || "[]"
-  );
-
-let currentConversationId =
-  localStorage.getItem(
-    "nova_current_conversation"
-  );
-
-
-/* =========================================
-   NOVA MEMORY
-========================================= */
-
-let novaMemories =
-  JSON.parse(
-    localStorage.getItem(
-      "nova_memories"
-    ) || "[]"
-  );
-
-
-function saveMemories() {
-
-  localStorage.setItem(
-    "nova_memories",
-    JSON.stringify(novaMemories)
-  );
-
-}
-
-
-/* =========================================
-   ADD MEMORY
-========================================= */
-
-function addMemory(memory) {
-
-  memory = memory.trim();
-
-  if (!memory) {
-    return;
-  }
-
-
-  const exists =
-    novaMemories.some(
-      item =>
-        item.toLowerCase() ===
-        memory.toLowerCase()
-    );
-
-
-  if (!exists) {
-
-    novaMemories.push(memory);
-
-    saveMemories();
-
-  }
-
-}
-
-
-/* =========================================
-   DELETE MEMORY
-========================================= */
-
-function deleteMemory(index) {
-
-  if (
-    index < 0 ||
-    index >= novaMemories.length
-  ) {
-    return;
-  }
-
-
-  novaMemories.splice(
-    index,
-    1
-  );
-
-
-  saveMemories();
-
-  renderMemoryPanel();
-
-}
-
-
-/* =========================================
-   CLEAR ALL MEMORIES
-========================================= */
-
-function clearAllMemories() {
-
-  if (
-    novaMemories.length === 0
-  ) {
-    return;
-  }
-
-
-  const confirmed =
-    confirm(
-      "Delete all NOVA memories?"
-    );
-
-
-  if (!confirmed) {
-    return;
-  }
-
-
-  novaMemories = [];
-
-  saveMemories();
-
-  renderMemoryPanel();
-
-}
-
-
-/* =========================================
-   MEMORY CONTEXT
+   MEMORY
 ========================================= */
 
 function getMemoryContext() {
 
-  if (
-    novaMemories.length === 0
-  ) {
-
-    return "";
-
-  }
-
-
-  return `
-The following information has been saved as memory about the user:
-
-${novaMemories
-  .map(
-    memory =>
-      `- ${memory}`
-  )
-  .join("\n")}
-
-Use these memories when they are relevant to the user's request.
-Do not mention the memory system unless the user asks about it.
-`;
-
-}
-
-
-/* =========================================
-   AUTOMATIC MEMORY DETECTION
-========================================= */
-
-function detectMemory(userMessage) {
-
-  const patterns = [
-
-    /^my name is (.+)$/i,
-
-    /^i live in (.+)$/i,
-
-    /^i am learning (.+)$/i,
-
-    /^i'm learning (.+)$/i,
-
-    /^my project is called (.+)$/i,
-
-    /^i work on (.+)$/i,
-
-    /^my goal is (.+)$/i,
-
-    /^i want to become (.+)$/i
-
-  ];
-
-
-  for (
-    const pattern of patterns
-  ) {
-
-    const match =
-      userMessage.match(
-        pattern
-      );
-
-
-    if (match) {
-
-      addMemory(
-        userMessage
-      );
-
-      return true;
-
+    if (!novaMemories.length) {
+        return "";
     }
 
-  }
+    return `
+The following are memories NOVA has saved about the user.
+Use them only when relevant.
+
+${novaMemories
+    .map(memory => `- ${memory.content}`)
+    .join("\n")}
+`;
+}
 
 
-  return false;
+async function addMemory(content) {
 
+    if (!content || !currentUser || !supabaseClient) {
+        return;
+    }
+
+    const cleanContent = content.trim();
+
+    if (!cleanContent) return;
+
+    const alreadyExists = novaMemories.some(
+        memory =>
+            memory.content.toLowerCase() ===
+            cleanContent.toLowerCase()
+    );
+
+    if (alreadyExists) {
+        return;
+    }
+
+    const { data, error } =
+        await supabaseClient
+            .from("memories")
+            .insert({
+                user_id: currentUser.id,
+                content: cleanContent
+            })
+            .select()
+            .single();
+
+    if (error) {
+        console.error(
+            "Could not save memory:",
+            error
+        );
+
+        return;
+    }
+
+    if (data) {
+        novaMemories.unshift({
+            id: data.id,
+            content: data.content,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
+        });
+    }
+}
+
+
+function detectMemory(message) {
+
+    const patterns = [
+        {
+            regex: /my name is (.+)/i,
+            label: "The user's name is"
+        },
+        {
+            regex: /i live in (.+)/i,
+            label: "The user lives in"
+        },
+        {
+            regex: /i am learning (.+)/i,
+            label: "The user is learning"
+        },
+        {
+            regex: /my project is called (.+)/i,
+            label: "The user's project is called"
+        },
+        {
+            regex: /i work on (.+)/i,
+            label: "The user works on"
+        },
+        {
+            regex: /my goal is (.+)/i,
+            label: "The user's goal is"
+        },
+        {
+            regex: /i want to become (.+)/i,
+            label: "The user wants to become"
+        }
+    ];
+
+    for (const pattern of patterns) {
+
+        const match = message.match(pattern.regex);
+
+        if (match && match[1]) {
+
+            const value =
+                match[1]
+                    .trim()
+                    .replace(/[.!?]+$/, "");
+
+            addMemory(
+                `${pattern.label} ${value}.`
+            );
+
+            break;
+        }
+    }
 }
 
 
 /* =========================================
-   SAVE CONVERSATIONS
+   CONVERSATIONS
 ========================================= */
 
-function saveConversations() {
+async function createConversation() {
 
-  localStorage.setItem(
-    "nova_conversations",
-    JSON.stringify(
-      conversations
-    )
-  );
+    if (!currentUser || !supabaseClient) {
+        return null;
+    }
 
+    const title = "New chat";
 
-  localStorage.setItem(
-    "nova_current_conversation",
-    currentConversationId || ""
-  );
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("conversations")
+        .insert({
+            user_id: currentUser.id,
+            title
+        })
+        .select()
+        .single();
 
+    if (error) {
+        console.error(
+            "Could not create conversation:",
+            error
+        );
+
+        return null;
+    }
+
+    const conversation = {
+        id: data.id,
+        title: data.title,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        messages: []
+    };
+
+    conversations.unshift(conversation);
+
+    currentConversationId = conversation.id;
+
+    renderConversationList();
+
+    return conversation;
 }
 
-
-/* =========================================
-   CREATE CONVERSATION
-========================================= */
-
-function createConversation() {
-
-  const conversation = {
-
-    id:
-      Date.now().toString(),
-
-    title:
-      "New chat",
-
-    messages:
-      []
-
-  };
-
-
-  conversations.unshift(
-    conversation
-  );
-
-
-  currentConversationId =
-    conversation.id;
-
-
-  saveConversations();
-
-  renderConversationList();
-
-  clearMessages();
-
-
-  welcomeScreen.style.display =
-    "flex";
-
-}
-
-
-/* =========================================
-   CURRENT CONVERSATION
-========================================= */
 
 function getCurrentConversation() {
 
-  return conversations.find(
-    conversation =>
-      conversation.id ===
-      currentConversationId
-  );
+    return conversations.find(
+        conversation =>
+            conversation.id === currentConversationId
+    );
+}
 
+
+async function updateConversationTitle(
+    conversation,
+    title
+) {
+
+    if (
+        !conversation ||
+        !currentUser ||
+        !supabaseClient
+    ) {
+        return;
+    }
+
+    conversation.title = title;
+
+    const { error } =
+        await supabaseClient
+            .from("conversations")
+            .update({
+                title
+            })
+            .eq("id", conversation.id)
+            .eq("user_id", currentUser.id);
+
+    if (error) {
+        console.error(
+            "Could not update conversation:",
+            error
+        );
+    }
+
+    renderConversationList();
+}
+
+
+async function touchConversation(
+    conversation
+) {
+
+    if (
+        !conversation ||
+        !currentUser ||
+        !supabaseClient
+    ) {
+        return;
+    }
+
+    const now = new Date().toISOString();
+
+    conversation.updatedAt = now;
+
+    await supabaseClient
+        .from("conversations")
+        .update({
+            updated_at: now
+        })
+        .eq("id", conversation.id)
+        .eq("user_id", currentUser.id);
 }
 
 
 /* =========================================
-   CONVERSATION LIST
+   RENDER CONVERSATION LIST
 ========================================= */
 
 function renderConversationList() {
 
-  conversationList.innerHTML =
-    "";
+    if (!conversationList) return;
 
+    conversationList.innerHTML = "";
 
-  conversations.forEach(
-    conversation => {
+    if (!conversations.length) {
 
-      const button =
-        document.createElement(
-          "button"
+        conversationList.innerHTML = `
+            <div style="
+                padding:14px;
+                color:#777;
+                font-size:13px;
+            ">
+                No conversations yet
+            </div>
+        `;
+
+        return;
+    }
+
+    conversations.forEach(conversation => {
+
+        const item =
+            document.createElement("div");
+
+        item.className =
+            "conversation-item";
+
+        if (
+            conversation.id ===
+            currentConversationId
+        ) {
+            item.classList.add("active");
+        }
+
+        item.textContent =
+            conversation.title ||
+            "New chat";
+
+        item.addEventListener(
+            "click",
+            () => {
+
+                currentConversationId =
+                    conversation.id;
+
+                loadConversation(
+                    conversation.id
+                );
+
+                renderConversationList();
+
+                closeMobileSidebar();
+            }
         );
 
-
-      button.className =
-        "conversation-item";
-
-
-      button.textContent =
-        conversation.title ||
-        "New chat";
-
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          currentConversationId =
-            conversation.id;
-
-
-          saveConversations();
-
-
-          loadConversation(
-            conversation
-          );
-
-
-          closeSidebar();
-
-        }
-      );
-
-
-      conversationList.appendChild(
-        button
-      );
-
-    }
-  );
-
+        conversationList.appendChild(item);
+    });
 }
 
 
@@ -464,133 +1107,144 @@ function renderConversationList() {
    LOAD CONVERSATION
 ========================================= */
 
-function loadConversation(
-  conversation
-) {
+function loadConversation(id) {
 
-  clearMessages();
+    const conversation =
+        conversations.find(
+            item => item.id === id
+        );
 
-
-  if (
-    !conversation ||
-    conversation.messages.length === 0
-  ) {
-
-    welcomeScreen.style.display =
-      "flex";
-
-    return;
-
-  }
-
-
-  welcomeScreen.style.display =
-    "none";
-
-
-  conversation.messages.forEach(
-    message => {
-
-      addMessageToScreen(
-        message.role,
-        message.content
-      );
-
+    if (!conversation) {
+        clearMessages();
+        return;
     }
-  );
 
+    currentConversationId = id;
 
-  scrollToBottom();
+    clearMessages();
 
+    conversation.messages.forEach(message => {
+
+        addMessageToScreen(
+            message.role,
+            message.content
+        );
+    });
+
+    renderConversationList();
 }
 
 
 /* =========================================
-   CLEAR CHAT SCREEN
+   MESSAGE UI
 ========================================= */
 
 function clearMessages() {
 
-  messagesContainer.innerHTML =
-    "";
+    if (!messagesContainer) return;
 
+    messagesContainer.innerHTML = "";
+
+    if (welcomeScreen) {
+        welcomeScreen.style.display = "flex";
+
+        if (
+            messagesContainer.parentElement &&
+            messagesContainer.parentElement
+                .contains(welcomeScreen)
+        ) {
+            // Keep existing welcome screen.
+        }
+    }
+}
+
+
+function hideWelcomeScreen() {
+
+    if (welcomeScreen) {
+        welcomeScreen.style.display = "none";
+    }
+}
+
+
+function addMessageToScreen(
+    role,
+    content
+) {
+
+    hideWelcomeScreen();
+
+    if (!messagesContainer) return;
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        `message ${role === "user" ? "user-message" : "ai-message"}`;
+
+    const bubble =
+        document.createElement("div");
+
+    bubble.className =
+        "message-bubble";
+
+    bubble.textContent = content;
+
+    wrapper.appendChild(bubble);
+
+    messagesContainer.appendChild(wrapper);
+
+    scrollToBottom();
 }
 
 
 /* =========================================
-   ADD MESSAGE TO SCREEN
+   SAVE MESSAGE
 ========================================= */
 
-function addMessageToScreen(
-  role,
-  content
+async function saveMessageToSupabase(
+    conversationId,
+    role,
+    content
 ) {
 
-  const message =
-    document.createElement(
-      "div"
-    );
+    if (
+        !currentUser ||
+        !supabaseClient ||
+        !conversationId
+    ) {
+        return null;
+    }
 
+    const databaseRole =
+        role === "ai"
+            ? "assistant"
+            : role;
 
-  message.className =
-    `message ${role}`;
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("messages")
+        .insert({
+            conversation_id: conversationId,
+            user_id: currentUser.id,
+            role: databaseRole,
+            content
+        })
+        .select()
+        .single();
 
+    if (error) {
+        console.error(
+            "Could not save message:",
+            error
+        );
 
-  const messageContent =
-    document.createElement(
-      "div"
-    );
+        return null;
+    }
 
-
-  messageContent.className =
-    "message-content";
-
-
-  const roleLabel =
-    document.createElement(
-      "span"
-    );
-
-
-  roleLabel.className =
-    "message-role";
-
-
-  roleLabel.textContent =
-    role === "user"
-      ? "You"
-      : "NOVA";
-
-
-  const text =
-    document.createElement(
-      "div"
-    );
-
-
-  text.textContent =
-    content;
-
-
-  messageContent.appendChild(
-    roleLabel
-  );
-
-
-  messageContent.appendChild(
-    text
-  );
-
-
-  message.appendChild(
-    messageContent
-  );
-
-
-  messagesContainer.appendChild(
-    message
-  );
-
+    return data;
 }
 
 
@@ -600,370 +1254,295 @@ function addMessageToScreen(
 
 async function sendMessage() {
 
-  const userMessage =
-    messageInput.value.trim();
+    if (isSending) return;
+
+    const text =
+        messageInput?.value?.trim();
+
+    if (!text) return;
+
+    if (!currentUser) {
+        showAuthScreen();
+        return;
+    }
+
+    isSending = true;
+
+    if (sendBtn) {
+        sendBtn.disabled = true;
+    }
+
+    try {
+
+        let conversation =
+            getCurrentConversation();
+
+        if (!conversation) {
+            conversation =
+                await createConversation();
+        }
+
+        if (!conversation) {
+            throw new Error(
+                "Could not create a conversation."
+            );
+        }
+
+        hideWelcomeScreen();
+
+        messageInput.value = "";
+
+        messageInput.style.height = "auto";
+
+        detectMemory(text);
+
+        conversation.messages.push({
+            role: "user",
+            content: text
+        });
+
+        addMessageToScreen(
+            "user",
+            text
+        );
+
+        await saveMessageToSupabase(
+            conversation.id,
+            "user",
+            text
+        );
 
 
-  if (!userMessage) {
-    return;
-  }
+        /* -------------------------------
+           SET TITLE
+        -------------------------------- */
+
+        const userMessages =
+            conversation.messages.filter(
+                message =>
+                    message.role === "user"
+            );
+
+        if (
+            userMessages.length === 1 &&
+            conversation.title === "New chat"
+        ) {
+
+            let title =
+                text
+                    .replace(/\s+/g, " ")
+                    .trim();
+
+            if (title.length > 45) {
+                title =
+                    title.substring(0, 45) +
+                    "...";
+            }
+
+            await updateConversationTitle(
+                conversation,
+                title
+            );
+        }
 
 
-  let conversation =
-    getCurrentConversation();
+        await touchConversation(
+            conversation
+        );
 
 
-  if (!conversation) {
+        /* -------------------------------
+           AI RESPONSE
+        -------------------------------- */
 
-    createConversation();
+        await generateLocalResponse(
+            text
+        );
 
-    conversation =
-      getCurrentConversation();
+    } catch (error) {
 
-  }
+        console.error(
+            "Send message error:",
+            error
+        );
 
+        addMessageToScreen(
+            "ai",
+            "Something went wrong. Please try again."
+        );
 
-  /* ================================
-     MEMORY DETECTION
-  ================================= */
+    } finally {
 
-  detectMemory(
-    userMessage
-  );
+        isSending = false;
 
+        if (sendBtn) {
+            sendBtn.disabled = false;
+        }
 
-  /* ================================
-     HIDE WELCOME
-  ================================= */
-
-  welcomeScreen.style.display =
-    "none";
-
-
-  /* ================================
-     ADD USER MESSAGE
-  ================================= */
-
-  conversation.messages.push({
-
-    role:
-      "user",
-
-    content:
-      userMessage
-
-  });
-
-
-  addMessageToScreen(
-    "user",
-    userMessage
-  );
-
-
-  /* ================================
-     CONVERSATION TITLE
-  ================================= */
-
-  if (
-    conversation.title ===
-    "New chat"
-  ) {
-
-    conversation.title =
-      userMessage.length > 30
-        ? userMessage.substring(
-            0,
-            30
-          ) + "..."
-        : userMessage;
-
-  }
-
-
-  saveConversations();
-
-  renderConversationList();
-
-
-  /* ================================
-     CLEAR INPUT
-  ================================= */
-
-  messageInput.value =
-    "";
-
-  messageInput.style.height =
-    "auto";
-
-
-  scrollToBottom();
-
-
-  /* ================================
-     ASK NOVA
-  ================================= */
-
-  await generateLocalResponse(
-    userMessage
-  );
-
+        messageInput?.focus();
+    }
 }
 
 
 /* =========================================
-   CONNECT TO NOVA BACKEND
+   AI RESPONSE
 ========================================= */
 
 async function generateLocalResponse(
-  userMessage
+    userMessage
 ) {
 
-  const conversation =
-    getCurrentConversation();
+    const conversation =
+        getCurrentConversation();
 
+    if (!conversation) {
+        return;
+    }
 
-  if (!conversation) {
-    return;
-  }
+    const loadingElement =
+        document.createElement("div");
 
+    loadingElement.className =
+        "message ai-message nova-loading";
 
-  /* ================================
-     LOADING MESSAGE
-  ================================= */
+    loadingElement.innerHTML = `
+        <div class="message-bubble">
+            NOVA is thinking...
+        </div>
+    `;
 
-  const loadingMessage =
-    document.createElement(
-      "div"
+    messagesContainer.appendChild(
+        loadingElement
     );
 
-
-  loadingMessage.className =
-    "message ai";
+    scrollToBottom();
 
 
-  loadingMessage.id =
-    "nova-loading";
+    try {
+
+        const messagesForAI = [];
+
+        const memoryContext =
+            getMemoryContext();
+
+        if (memoryContext) {
+
+            messagesForAI.push({
+                role: "system",
+                content: `
+You are NOVA, an AI workspace assistant.
+
+${memoryContext}
+
+Use these memories naturally when relevant.
+Do not mention the memory system unless asked.
+`
+            });
+
+        } else {
+
+            messagesForAI.push({
+                role: "system",
+                content: `
+You are NOVA, an AI workspace assistant.
+Be helpful, accurate, clear and practical.
+`
+            });
+        }
 
 
-  const loadingContent =
-    document.createElement(
-      "div"
-    );
+        conversation.messages.forEach(
+            message => {
 
-
-  loadingContent.className =
-    "message-content";
-
-
-  loadingContent.innerHTML = `
-    <span class="message-role">NOVA</span>
-    <div>NOVA is thinking...</div>
-  `;
-
-
-  loadingMessage.appendChild(
-    loadingContent
-  );
-
-
-  messagesContainer.appendChild(
-    loadingMessage
-  );
-
-
-  scrollToBottom();
-
-
-  try {
-
-    /* ================================
-       BUILD REQUEST
-    ================================= */
-
-    const memoryContext =
-      getMemoryContext();
-
-
-    const messagesForAI = [
-
-      ...(memoryContext
-        ? [
-            {
-              role:
-                "system",
-
-              content:
-                memoryContext
+                messagesForAI.push({
+                    role:
+                        message.role === "ai"
+                            ? "assistant"
+                            : message.role,
+                    content: message.content
+                });
 
             }
-          ]
-        : []),
-
-      ...conversation.messages
-
-    ];
+        );
 
 
-    /* ================================
-       API REQUEST
-    ================================= */
+        const response =
+            await fetch("/api/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+                body: JSON.stringify({
+                    messages:
+                        messagesForAI
+                })
+            });
 
-    const response =
-      await fetch(
-        "/api/chat",
-        {
 
-          method:
-            "POST",
+        const data =
+            await response.json();
 
-          headers: {
 
-            "Content-Type":
-              "application/json"
+        if (!response.ok) {
 
-          },
-
-          body:
-            JSON.stringify({
-
-              messages:
-                messagesForAI
-
-            })
-
+            throw new Error(
+                data.error ||
+                "AI request failed."
+            );
         }
-      );
 
 
-    const data =
-      await response.json();
+        const aiText =
+            data.reply ||
+            data.message ||
+            data.content ||
+            "I couldn't generate a response.";
 
 
-    /* ================================
-       REMOVE LOADING
-    ================================= */
-
-    const loading =
-      document.getElementById(
-        "nova-loading"
-      );
+        loadingElement.remove();
 
 
-    if (loading) {
-      loading.remove();
+        conversation.messages.push({
+            role: "ai",
+            content: aiText
+        });
+
+
+        addMessageToScreen(
+            "ai",
+            aiText
+        );
+
+
+        await saveMessageToSupabase(
+            conversation.id,
+            "ai",
+            aiText
+        );
+
+
+        await touchConversation(
+            conversation
+        );
+
+        renderConversationList();
+
+
+    } catch (error) {
+
+        console.error(
+            "AI response error:",
+            error
+        );
+
+        loadingElement.remove();
+
+        addMessageToScreen(
+            "ai",
+            "I couldn't reach the AI service right now. Please try again."
+        );
     }
-
-
-    /* ================================
-       API ERROR
-    ================================= */
-
-    if (!response.ok) {
-
-      throw new Error(
-        data.error ||
-        "NOVA backend returned an error."
-      );
-
-    }
-
-
-    /* ================================
-       GET ANSWER
-    ================================= */
-
-    const answer =
-      data.answer;
-
-
-    if (!answer) {
-
-      throw new Error(
-        "NOVA returned an empty response."
-      );
-
-    }
-
-
-    /* ================================
-       SAVE NOVA MESSAGE
-    ================================= */
-
-    conversation.messages.push({
-
-      role:
-        "ai",
-
-      content:
-        answer
-
-    });
-
-
-    /* ================================
-       DISPLAY NOVA
-    ================================= */
-
-    addMessageToScreen(
-      "ai",
-      answer
-    );
-
-
-    saveConversations();
-
-    renderConversationList();
-
-    scrollToBottom();
-
-
-  } catch (error) {
-
-    console.error(
-      "NOVA error:",
-      error
-    );
-
-
-    const loading =
-      document.getElementById(
-        "nova-loading"
-      );
-
-
-    if (loading) {
-      loading.remove();
-    }
-
-
-    const errorMessage =
-      "I couldn't connect to the NOVA AI service right now. Please try again.";
-
-
-    conversation.messages.push({
-
-      role:
-        "ai",
-
-      content:
-        errorMessage
-
-    });
-
-
-    addMessageToScreen(
-      "ai",
-      errorMessage
-    );
-
-
-    saveConversations();
-
-    scrollToBottom();
-
-  }
-
 }
 
 
@@ -973,526 +1552,476 @@ async function generateLocalResponse(
 
 function renderMemoryPanel() {
 
-  const existing =
-    document.getElementById(
-      "nova-memory-panel"
-    );
-
-
-  if (existing) {
-    existing.remove();
-  }
-
-
-  const panel =
-    document.createElement(
-      "div"
-    );
-
-
-  panel.id =
-    "nova-memory-panel";
-
-
-  panel.style.position =
-    "fixed";
-
-  panel.style.top =
-    "0";
-
-  panel.style.left =
-    "0";
-
-  panel.style.right =
-    "0";
-
-  panel.style.bottom =
-    "0";
-
-  panel.style.zIndex =
-    "9999";
-
-  panel.style.background =
-    "rgba(0,0,0,0.75)";
-
-  panel.style.display =
-    "flex";
-
-  panel.style.alignItems =
-    "center";
-
-  panel.style.justifyContent =
-    "center";
-
-  panel.style.padding =
-    "20px";
-
-
-  const box =
-    document.createElement(
-      "div"
-    );
-
-
-  box.style.width =
-    "100%";
-
-  box.style.maxWidth =
-    "500px";
-
-  box.style.maxHeight =
-    "80vh";
-
-  box.style.overflowY =
-    "auto";
-
-  box.style.background =
-    "#11141b";
-
-  box.style.border =
-    "1px solid #292e38";
-
-  box.style.borderRadius =
-    "18px";
-
-  box.style.padding =
-    "22px";
-
-  box.style.color =
-    "white";
-
-
-  const title =
-    document.createElement(
-      "h2"
-    );
-
-
-  title.textContent =
-    "NOVA Memory";
-
-
-  title.style.marginTop =
-    "0";
-
-
-  const description =
-    document.createElement(
-      "p"
-    );
-
-
-  description.textContent =
-    "Information NOVA has saved about you.";
-
-  description.style.opacity =
-    "0.7";
-
-
-  box.appendChild(
-    title
-  );
-
-  box.appendChild(
-    description
-  );
-
-
-  /* =====================================
-     ADD MEMORY BUTTON
-  ====================================== */
-
-  const addButton =
-    document.createElement(
-      "button"
-    );
-
-
-  addButton.textContent =
-    "＋ Add memory";
-
-
-  addButton.style.width =
-    "100%";
-
-  addButton.style.padding =
-    "12px";
-
-  addButton.style.margin =
-    "10px 0";
-
-  addButton.style.borderRadius =
-    "10px";
-
-  addButton.style.border =
-    "none";
-
-  addButton.style.cursor =
-    "pointer";
-
-
-  addButton.addEventListener(
-    "click",
-    () => {
-
-      const memory =
-        prompt(
-          "What should NOVA remember?"
+    const existing =
+        document.getElementById(
+            "novaMemoryPanel"
         );
 
-
-      if (memory) {
-
-        addMemory(
-          memory
-        );
-
-        renderMemoryPanel();
-
-      }
-
+    if (existing) {
+        existing.remove();
     }
-  );
+
+    const panel =
+        document.createElement("div");
+
+    panel.id =
+        "novaMemoryPanel";
+
+    panel.innerHTML = `
+        <div class="nova-memory-overlay"></div>
+
+        <div class="nova-memory-box">
+
+            <button
+                id="closeMemoryPanel"
+                class="nova-memory-close"
+            >
+                ×
+            </button>
+
+            <h2>NOVA Memory</h2>
+
+            <p>
+                Memories help NOVA remember useful information
+                about you across conversations.
+            </p>
+
+            <div id="novaMemoryList"></div>
+
+            <button
+                id="clearAllMemories"
+                class="nova-clear-memory"
+            >
+                Clear all memories
+            </button>
+
+        </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    const style =
+        document.createElement("style");
+
+    style.textContent = `
+        #novaMemoryPanel {
+            position: fixed;
+            inset: 0;
+            z-index: 9000;
+        }
+
+        .nova-memory-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,.65);
+        }
+
+        .nova-memory-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            width: min(90%,500px);
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 25px;
+            border-radius: 18px;
+            background: #111;
+            color: white;
+            border: 1px solid rgba(255,255,255,.1);
+        }
+
+        .nova-memory-box h2 {
+            margin-top: 0;
+        }
+
+        .nova-memory-box p {
+            color: #999;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .nova-memory-close {
+            float: right;
+            border: 0;
+            background: transparent;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+        }
+
+        .nova-memory-item {
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-top: 10px;
+            border-radius: 10px;
+            background: rgba(255,255,255,.05);
+            font-size: 13px;
+        }
+
+        .nova-memory-delete {
+            border: 0;
+            background: transparent;
+            color: #ff7777;
+            cursor: pointer;
+        }
+
+        .nova-clear-memory {
+            margin-top: 18px;
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.1);
+            background: rgba(255,255,255,.05);
+            color: white;
+            cursor: pointer;
+        }
+    `;
+
+    document.head.appendChild(style);
 
 
-  box.appendChild(
-    addButton
-  );
+    const list =
+        document.getElementById(
+            "novaMemoryList"
+        );
 
 
-  /* =====================================
-     MEMORY LIST
-  ====================================== */
+    if (!novaMemories.length) {
 
-  if (
-    novaMemories.length === 0
-  ) {
+        list.innerHTML = `
+            <p>No memories saved yet.</p>
+        `;
 
-    const empty =
-      document.createElement(
-        "p"
-      );
+    } else {
 
+        novaMemories.forEach(memory => {
 
-    empty.textContent =
-      "NOVA has no saved memories yet.";
+            const item =
+                document.createElement("div");
 
-    empty.style.opacity =
-      "0.6";
+            item.className =
+                "nova-memory-item";
 
+            const text =
+                document.createElement("span");
 
-    box.appendChild(
-      empty
-    );
+            text.textContent =
+                memory.content;
 
-  } else {
+            const deleteButton =
+                document.createElement("button");
 
-    novaMemories.forEach(
-      (memory, index) => {
+            deleteButton.className =
+                "nova-memory-delete";
 
-        const row =
-          document.createElement(
-            "div"
-          );
+            deleteButton.textContent =
+                "Delete";
 
-
-        row.style.display =
-          "flex";
-
-        row.style.alignItems =
-          "center";
-
-        row.style.justifyContent =
-          "space-between";
-
-        row.style.gap =
-          "10px";
-
-        row.style.padding =
-          "12px 0";
-
-        row.style.borderBottom =
-          "1px solid #252a33";
-
-
-        const text =
-          document.createElement(
-            "span"
-          );
-
-
-        text.textContent =
-          memory;
-
-
-        text.style.flex =
-          "1";
-
-
-        const deleteButton =
-          document.createElement(
-            "button"
-          );
-
-
-        deleteButton.textContent =
-          "Delete";
-
-
-        deleteButton.style.padding =
-          "7px 10px";
-
-        deleteButton.style.borderRadius =
-          "8px";
-
-        deleteButton.style.border =
-          "1px solid #333";
-
-        deleteButton.style.cursor =
-          "pointer";
-
-
-        deleteButton.addEventListener(
-          "click",
-          () => {
-
-            deleteMemory(
-              index
+            deleteButton.addEventListener(
+                "click",
+                () => deleteMemory(memory.id)
             );
 
-          }
-        );
+            item.appendChild(text);
+            item.appendChild(deleteButton);
 
-
-        row.appendChild(
-          text
-        );
-
-
-        row.appendChild(
-          deleteButton
-        );
-
-
-        box.appendChild(
-          row
-        );
-
-      }
-    );
-
-  }
-
-
-  /* =====================================
-     CLEAR ALL
-  ====================================== */
-
-  if (
-    novaMemories.length > 0
-  ) {
-
-    const clearButton =
-      document.createElement(
-        "button"
-      );
-
-
-    clearButton.textContent =
-      "Clear all memories";
-
-
-    clearButton.style.width =
-      "100%";
-
-    clearButton.style.padding =
-      "12px";
-
-    clearButton.style.marginTop =
-      "18px";
-
-    clearButton.style.borderRadius =
-      "10px";
-
-    clearButton.style.border =
-      "1px solid #444";
-
-    clearButton.style.cursor =
-      "pointer";
-
-
-    clearButton.addEventListener(
-      "click",
-      clearAllMemories
-    );
-
-
-    box.appendChild(
-      clearButton
-    );
-
-  }
-
-
-  /* =====================================
-     CLOSE
-  ====================================== */
-
-  const closeButton =
-    document.createElement(
-      "button"
-    );
-
-
-  closeButton.textContent =
-    "Close";
-
-
-  closeButton.style.width =
-    "100%";
-
-  closeButton.style.padding =
-    "12px";
-
-  closeButton.style.marginTop =
-    "10px";
-
-  closeButton.style.borderRadius =
-    "10px";
-
-  closeButton.style.border =
-    "none";
-
-  closeButton.style.cursor =
-    "pointer";
-
-
-  closeButton.addEventListener(
-    "click",
-    () => {
-
-      panel.remove();
-
+            list.appendChild(item);
+        });
     }
-  );
 
 
-  box.appendChild(
-    closeButton
-  );
+    document
+        .getElementById("closeMemoryPanel")
+        .addEventListener(
+            "click",
+            () => panel.remove()
+        );
 
 
-  panel.appendChild(
-    box
-  );
+    document
+        .getElementById("clearAllMemories")
+        .addEventListener(
+            "click",
+            clearAllMemories
+        );
+}
 
 
-  document.body.appendChild(
-    panel
-  );
+async function deleteMemory(id) {
 
+    if (!currentUser || !supabaseClient) {
+        return;
+    }
+
+    const { error } =
+        await supabaseClient
+            .from("memories")
+            .delete()
+            .eq("id", id)
+            .eq("user_id", currentUser.id);
+
+    if (error) {
+
+        console.error(
+            "Could not delete memory:",
+            error
+        );
+
+        return;
+    }
+
+    novaMemories =
+        novaMemories.filter(
+            memory =>
+                memory.id !== id
+        );
+
+    renderMemoryPanel();
+}
+
+
+async function clearAllMemories() {
+
+    if (!currentUser || !supabaseClient) {
+        return;
+    }
+
+    const confirmed =
+        confirm(
+            "Delete all NOVA memories?"
+        );
+
+    if (!confirmed) return;
+
+    const { error } =
+        await supabaseClient
+            .from("memories")
+            .delete()
+            .eq("user_id", currentUser.id);
+
+    if (error) {
+
+        console.error(
+            "Could not clear memories:",
+            error
+        );
+
+        return;
+    }
+
+    novaMemories = [];
+
+    renderMemoryPanel();
 }
 
 
 /* =========================================
-   SETTINGS BUTTON
+   SETTINGS / LOGOUT
 ========================================= */
 
-const sidebarButtons =
-  document.querySelectorAll(
-    ".sidebar-btn"
-  );
+function openSettings() {
+
+    const panel =
+        document.createElement("div");
+
+    panel.id =
+        "novaSettingsPanel";
+
+    const email =
+        currentUser?.email ||
+        "Unknown user";
+
+    panel.innerHTML = `
+        <div class="nova-settings-overlay"></div>
+
+        <div class="nova-settings-box">
+
+            <button
+                id="closeNovaSettings"
+                class="nova-settings-close"
+            >
+                ×
+            </button>
+
+            <h2>NOVA Settings</h2>
+
+            <p>
+                Logged in as:
+            </p>
+
+            <strong>
+                ${escapeHtml(email)}
+            </strong>
+
+            <button
+                id="openNovaMemories"
+                class="nova-settings-button"
+            >
+                🧠 Manage memories
+            </button>
+
+            <button
+                id="novaLogout"
+                class="nova-settings-button logout"
+            >
+                Log out
+            </button>
+
+        </div>
+    `;
+
+    document.body.appendChild(panel);
 
 
-sidebarButtons.forEach(
-  button => {
+    const style =
+        document.createElement("style");
 
-    const text =
-      button.textContent
-        .trim()
-        .toLowerCase();
-
-
-    if (
-      text.includes("settings")
-    ) {
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          renderMemoryPanel();
-
+    style.textContent = `
+        #novaSettingsPanel {
+            position: fixed;
+            inset: 0;
+            z-index: 8000;
         }
-      );
 
+        .nova-settings-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,.65);
+        }
+
+        .nova-settings-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            width: min(90%,400px);
+            padding: 25px;
+            border-radius: 18px;
+            background: #111;
+            color: white;
+            border: 1px solid rgba(255,255,255,.1);
+        }
+
+        .nova-settings-close {
+            float: right;
+            border: 0;
+            background: transparent;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+        }
+
+        .nova-settings-box p {
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .nova-settings-button {
+            width: 100%;
+            margin-top: 18px;
+            padding: 13px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.1);
+            background: rgba(255,255,255,.06);
+            color: white;
+            cursor: pointer;
+        }
+
+        .nova-settings-button.logout {
+            color: #ff8080;
+        }
+    `;
+
+    document.head.appendChild(style);
+
+
+    document
+        .getElementById("closeNovaSettings")
+        .addEventListener(
+            "click",
+            () => panel.remove()
+        );
+
+
+    document
+        .getElementById("openNovaMemories")
+        .addEventListener(
+            "click",
+            () => {
+                panel.remove();
+                renderMemoryPanel();
+            }
+        );
+
+
+    document
+        .getElementById("novaLogout")
+        .addEventListener(
+            "click",
+            logout
+        );
+}
+
+
+async function logout() {
+
+    if (!supabaseClient) return;
+
+    const { error } =
+        await supabaseClient.auth.signOut();
+
+    if (error) {
+        console.error(
+            "Logout error:",
+            error
+        );
+
+        return;
     }
 
-  }
-);
+    conversations = [];
+    novaMemories = [];
+    currentConversationId = null;
 
+    clearMessages();
 
-/* =========================================
-   ENTER / SHIFT + ENTER
-========================================= */
+    const settings =
+        document.getElementById(
+            "novaSettingsPanel"
+        );
 
-messageInput.addEventListener(
-  "keydown",
-  event => {
-
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey
-    ) {
-
-      event.preventDefault();
-
-      sendMessage();
-
+    if (settings) {
+        settings.remove();
     }
-
-  }
-);
+}
 
 
 /* =========================================
-   SEND BUTTON
+   SETTINGS BUTTON DETECTION
 ========================================= */
 
-sendBtn.addEventListener(
-  "click",
-  sendMessage
-);
+document.addEventListener(
+    "click",
+    event => {
 
+        const text =
+            event.target?.textContent
+                ?.trim()
+                ?.toLowerCase();
 
-/* =========================================
-   STARTER CARDS
-========================================= */
+        if (!text) return;
 
-starterCards.forEach(
-  card => {
-
-    card.addEventListener(
-      "click",
-      () => {
-
-        const prompt =
-          card.dataset.prompt;
-
-
-        messageInput.value =
-          prompt;
-
-
-        messageInput.focus();
-
-
-        sendMessage();
-
-      }
-    );
-
-  }
+        if (
+            text === "settings" ||
+            text.includes("⚙settings")
+        ) {
+            openSettings();
+        }
+    }
 );
 
 
@@ -1500,82 +2029,153 @@ starterCards.forEach(
    NEW CHAT
 ========================================= */
 
-newChatBtn.addEventListener(
-  "click",
-  () => {
+if (newChatBtn) {
 
-    createConversation();
+    newChatBtn.addEventListener(
+        "click",
+        async () => {
 
-    closeSidebar();
+            if (!currentUser) {
+                showAuthScreen();
+                return;
+            }
 
-  }
-);
+            await createConversation();
+
+            clearMessages();
+
+            closeMobileSidebar();
+
+            messageInput?.focus();
+        }
+    );
+}
 
 
 /* =========================================
-   TEXTAREA AUTO RESIZE
+   SEND BUTTON
 ========================================= */
 
-messageInput.addEventListener(
-  "input",
-  () => {
+if (sendBtn) {
 
-    messageInput.style.height =
-      "auto";
+    sendBtn.addEventListener(
+        "click",
+        sendMessage
+    );
+}
 
 
-    messageInput.style.height =
-      Math.min(
-        messageInput.scrollHeight,
-        180
-      ) + "px";
+/* =========================================
+   ENTER KEY
+========================================= */
 
-  }
-);
+if (messageInput) {
+
+    messageInput.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key === "Enter" &&
+                !event.shiftKey
+            ) {
+
+                event.preventDefault();
+
+                sendMessage();
+            }
+        }
+    );
+
+
+    messageInput.addEventListener(
+        "input",
+        () => {
+
+            messageInput.style.height =
+                "auto";
+
+            messageInput.style.height =
+                Math.min(
+                    messageInput.scrollHeight,
+                    180
+                ) + "px";
+        }
+    );
+}
+
+
+/* =========================================
+   STARTER CARDS
+========================================= */
+
+starterCards.forEach(card => {
+
+    card.addEventListener(
+        "click",
+        () => {
+
+            const prompt =
+                card.dataset.prompt ||
+                card.querySelector("p")?.textContent ||
+                card.querySelector("span")?.textContent ||
+                "";
+
+            if (!prompt) return;
+
+            messageInput.value =
+                prompt;
+
+            sendMessage();
+        }
+    );
+});
 
 
 /* =========================================
    MOBILE SIDEBAR
 ========================================= */
 
-function openSidebar() {
+function openMobileSidebar() {
 
-  sidebar.classList.add(
-    "open"
-  );
+    if (sidebar) {
+        sidebar.classList.add("open");
+    }
 
-
-  sidebarOverlay.classList.add(
-    "active"
-  );
-
+    if (sidebarOverlay) {
+        sidebarOverlay.classList.add("active");
+    }
 }
 
 
-function closeSidebar() {
+function closeMobileSidebar() {
 
-  sidebar.classList.remove(
-    "open"
-  );
+    if (sidebar) {
+        sidebar.classList.remove("open");
+    }
 
-
-  sidebarOverlay.classList.remove(
-    "active"
-  );
-
+    if (sidebarOverlay) {
+        sidebarOverlay.classList.remove("active");
+    }
 }
 
 
-menuBtn.addEventListener(
-  "click",
-  openSidebar
-);
+if (menuBtn) {
+
+    menuBtn.addEventListener(
+        "click",
+        openMobileSidebar
+    );
+}
 
 
-sidebarOverlay.addEventListener(
-  "click",
-  closeSidebar
-);
+if (sidebarOverlay) {
+
+    sidebarOverlay.addEventListener(
+        "click",
+        closeMobileSidebar
+    );
+}
 
 
 /* =========================================
@@ -1584,9 +2184,25 @@ sidebarOverlay.addEventListener(
 
 function scrollToBottom() {
 
-  messagesContainer.scrollTop =
-    messagesContainer.scrollHeight;
+    if (!messagesContainer) return;
 
+    messagesContainer.scrollTop =
+        messagesContainer.scrollHeight;
+}
+
+
+/* =========================================
+   HTML ESCAPE
+========================================= */
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 
@@ -1596,26 +2212,29 @@ function scrollToBottom() {
 
 function initializeNOVA() {
 
-  renderConversationList();
-
-
-  if (
-    currentConversationId &&
-    getCurrentConversation()
-  ) {
-
-    loadConversation(
-      getCurrentConversation()
+    console.log(
+        "NOVA initialized for:",
+        currentUser?.email
     );
 
-  } else {
+    renderConversationList();
 
-    welcomeScreen.style.display =
-      "flex";
+    if (currentConversationId) {
+        loadConversation(
+            currentConversationId
+        );
+    } else {
+        clearMessages();
+    }
 
-  }
-
+    messageInput?.focus();
 }
 
 
-initializeNOVA();
+/* =========================================
+   START
+========================================= */
+
+createAuthScreen();
+
+initializeSupabase();
