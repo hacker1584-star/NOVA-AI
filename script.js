@@ -1,5 +1,6 @@
 /* =========================================
    NOVA AI — FRONTEND + SUPABASE
+   Stable Cloud Version
 ========================================= */
 
 
@@ -49,7 +50,9 @@ let isSending = false;
 ========================================= */
 
 function loadTheme() {
-    const savedTheme = localStorage.getItem("nova_theme");
+
+    const savedTheme =
+        localStorage.getItem("nova_theme");
 
     if (savedTheme === "light") {
         document.body.classList.add("light-theme");
@@ -58,20 +61,36 @@ function loadTheme() {
     }
 }
 
+
 function toggleTheme() {
-    document.body.classList.toggle("light-theme");
 
-    const theme = document.body.classList.contains("light-theme")
-        ? "light"
-        : "dark";
+    document.body.classList.toggle(
+        "light-theme"
+    );
 
-    localStorage.setItem("nova_theme", theme);
+    const theme =
+        document.body.classList.contains(
+            "light-theme"
+        )
+            ? "light"
+            : "dark";
+
+    localStorage.setItem(
+        "nova_theme",
+        theme
+    );
 }
+
 
 loadTheme();
 
+
 if (themeToggle) {
-    themeToggle.addEventListener("click", toggleTheme);
+
+    themeToggle.addEventListener(
+        "click",
+        toggleTheme
+    );
 }
 
 
@@ -80,73 +99,148 @@ if (themeToggle) {
 ========================================= */
 
 async function initializeSupabase() {
+
     try {
-        const response = await fetch("/api/config");
+
+        const response =
+            await fetch("/api/config", {
+                method: "GET",
+                cache: "no-store"
+            });
+
 
         if (!response.ok) {
-            throw new Error("Could not load Supabase configuration.");
+
+            throw new Error(
+                "Could not load Supabase configuration."
+            );
         }
 
-        const config = await response.json();
 
-        if (!config.supabaseUrl || !config.supabasePublishableKey) {
-            throw new Error("Supabase configuration is missing.");
+        const config =
+            await response.json();
+
+
+        if (
+            !config.supabaseUrl ||
+            !config.supabasePublishableKey
+        ) {
+
+            throw new Error(
+                "Supabase configuration is missing."
+            );
         }
 
-        if (typeof supabase === "undefined") {
-            throw new Error("Supabase library did not load.");
+
+        if (
+            typeof supabase === "undefined"
+        ) {
+
+            throw new Error(
+                "Supabase library did not load."
+            );
         }
 
-        supabaseClient = supabase.createClient(
-            config.supabaseUrl,
-            config.supabasePublishableKey
-        );
+
+        supabaseClient =
+            supabase.createClient(
+                config.supabaseUrl,
+                config.supabasePublishableKey
+            );
+
 
         supabaseReady = true;
 
-        console.log("NOVA: Supabase connected.");
+
+        console.log(
+            "NOVA: Supabase connected."
+        );
+
 
         const {
             data: { session }
-        } = await supabaseClient.auth.getSession();
+        } =
+            await supabaseClient.auth.getSession();
 
-        if (session && session.user) {
-            currentUser = session.user;
+
+        if (
+            session &&
+            session.user
+        ) {
+
+            currentUser =
+                session.user;
+
 
             await loadUserData();
 
+
             hideAuthScreen();
 
+
             initializeNOVA();
+
         } else {
+
             showAuthScreen();
+
         }
 
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
-            console.log("NOVA auth event:", event);
 
-            if (session && session.user) {
-                currentUser = session.user;
+        supabaseClient.auth.onAuthStateChange(
+            async (event, session) => {
 
-                await loadUserData();
+                console.log(
+                    "NOVA auth event:",
+                    event
+                );
 
-                hideAuthScreen();
 
-                initializeNOVA();
-            } else {
-                currentUser = null;
-                conversations = [];
-                novaMemories = [];
-                currentConversationId = null;
+                if (
+                    session &&
+                    session.user
+                ) {
 
-                showAuthScreen();
+                    currentUser =
+                        session.user;
+
+
+                    await loadUserData();
+
+
+                    hideAuthScreen();
+
+
+                    initializeNOVA();
+
+                } else {
+
+                    currentUser = null;
+
+                    conversations = [];
+
+                    novaMemories = [];
+
+                    currentConversationId = null;
+
+
+                    showAuthScreen();
+                }
+
             }
-        });
+        );
 
     } catch (error) {
-        console.error("Supabase initialization error:", error);
 
-        showConfigError(error.message);
+        console.error(
+            "Supabase initialization error:",
+            error
+        );
+
+
+        showConfigError(
+            error.message
+        );
     }
 }
 
@@ -157,12 +251,21 @@ async function initializeSupabase() {
 
 let authScreen = null;
 
+
 function createAuthScreen() {
-    if (authScreen) return;
 
-    authScreen = document.createElement("div");
+    if (authScreen) {
+        return;
+    }
 
-    authScreen.id = "novaAuthScreen";
+
+    authScreen =
+        document.createElement("div");
+
+
+    authScreen.id =
+        "novaAuthScreen";
+
 
     authScreen.innerHTML = `
         <div class="nova-auth-box">
@@ -178,14 +281,23 @@ function createAuthScreen() {
             </p>
 
             <div class="nova-auth-tabs">
-                <button id="novaLoginTab" class="nova-auth-tab active">
+
+                <button
+                    id="novaLoginTab"
+                    class="nova-auth-tab active"
+                >
                     Login
                 </button>
 
-                <button id="novaSignupTab" class="nova-auth-tab">
+                <button
+                    id="novaSignupTab"
+                    class="nova-auth-tab"
+                >
                     Sign up
                 </button>
+
             </div>
+
 
             <form id="novaAuthForm">
 
@@ -222,7 +334,12 @@ function createAuthScreen() {
 
             </form>
 
-            <p id="novaAuthMessage" class="nova-auth-message"></p>
+
+            <p
+                id="novaAuthMessage"
+                class="nova-auth-message"
+            ></p>
+
 
             <p class="nova-auth-footer">
                 By continuing, you agree to use NOVA responsibly.
@@ -231,152 +348,272 @@ function createAuthScreen() {
         </div>
     `;
 
-    document.body.appendChild(authScreen);
+
+    document.body.appendChild(
+        authScreen
+    );
+
 
     addAuthStyles();
 
-    const loginTab = document.getElementById("novaLoginTab");
-    const signupTab = document.getElementById("novaSignupTab");
-    const form = document.getElementById("novaAuthForm");
-    const nameInput = document.getElementById("novaAuthName");
-    const submitButton = document.getElementById("novaAuthSubmit");
+
+    const loginTab =
+        document.getElementById(
+            "novaLoginTab"
+        );
+
+    const signupTab =
+        document.getElementById(
+            "novaSignupTab"
+        );
+
+    const form =
+        document.getElementById(
+            "novaAuthForm"
+        );
+
+    const nameInput =
+        document.getElementById(
+            "novaAuthName"
+        );
+
+    const submitButton =
+        document.getElementById(
+            "novaAuthSubmit"
+        );
+
 
     let authMode = "login";
 
-    loginTab.addEventListener("click", () => {
-        authMode = "login";
 
-        loginTab.classList.add("active");
-        signupTab.classList.remove("active");
+    loginTab.addEventListener(
+        "click",
+        () => {
 
-        nameInput.style.display = "none";
-        nameInput.required = false;
+            authMode = "login";
 
-        submitButton.textContent = "Login";
-
-        clearAuthMessage();
-    });
-
-    signupTab.addEventListener("click", () => {
-        authMode = "signup";
-
-        signupTab.classList.add("active");
-        loginTab.classList.remove("active");
-
-        nameInput.style.display = "block";
-        nameInput.required = true;
-
-        submitButton.textContent = "Create account";
-
-        clearAuthMessage();
-    });
-
-    form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-
-        const email = document
-            .getElementById("novaAuthEmail")
-            .value
-            .trim();
-
-        const password = document
-            .getElementById("novaAuthPassword")
-            .value;
-
-        const name = nameInput.value.trim();
-
-        if (!email || !password) {
-            showAuthMessage(
-                "Enter your email and password.",
-                "error"
+            loginTab.classList.add(
+                "active"
             );
 
-            return;
-        }
-
-        if (password.length < 6) {
-            showAuthMessage(
-                "Password must be at least 6 characters.",
-                "error"
+            signupTab.classList.remove(
+                "active"
             );
 
-            return;
+            nameInput.style.display =
+                "none";
+
+            nameInput.required =
+                false;
+
+            submitButton.textContent =
+                "Login";
+
+            clearAuthMessage();
+
         }
+    );
 
-        submitButton.disabled = true;
 
-        submitButton.textContent =
-            authMode === "login"
-                ? "Logging in..."
-                : "Creating account...";
+    signupTab.addEventListener(
+        "click",
+        () => {
 
-        clearAuthMessage();
+            authMode = "signup";
 
-        try {
-            if (authMode === "login") {
-                const { error } =
-                    await supabaseClient.auth.signInWithPassword({
-                        email,
-                        password
-                    });
+            signupTab.classList.add(
+                "active"
+            );
 
-                if (error) {
-                    throw error;
-                }
+            loginTab.classList.remove(
+                "active"
+            );
+
+            nameInput.style.display =
+                "block";
+
+            nameInput.required =
+                true;
+
+            submitButton.textContent =
+                "Create account";
+
+            clearAuthMessage();
+
+        }
+    );
+
+
+    form.addEventListener(
+        "submit",
+        async event => {
+
+            event.preventDefault();
+
+
+            const email =
+                document
+                    .getElementById(
+                        "novaAuthEmail"
+                    )
+                    .value
+                    .trim();
+
+
+            const password =
+                document
+                    .getElementById(
+                        "novaAuthPassword"
+                    )
+                    .value;
+
+
+            const name =
+                nameInput.value.trim();
+
+
+            if (
+                !email ||
+                !password
+            ) {
 
                 showAuthMessage(
-                    "Login successful.",
-                    "success"
+                    "Enter your email and password.",
+                    "error"
                 );
 
-            } else {
-                const { data, error } =
-                    await supabaseClient.auth.signUp({
-                        email,
-                        password
-                    });
-
-                if (error) {
-                    throw error;
-                }
-
-                if (data.user) {
-                    await createOrUpdateProfile(
-                        data.user,
-                        name || email.split("@")[0]
-                    );
-                }
-
-                if (!data.session) {
-                    showAuthMessage(
-                        "Account created. Check your email to confirm your account, then log in.",
-                        "success"
-                    );
-                } else {
-                    showAuthMessage(
-                        "Account created successfully.",
-                        "success"
-                    );
-                }
+                return;
             }
 
-        } catch (error) {
-            console.error("Authentication error:", error);
 
-            showAuthMessage(
-                getFriendlyAuthError(error),
-                "error"
-            );
+            if (
+                password.length < 6
+            ) {
 
-        } finally {
-            submitButton.disabled = false;
+                showAuthMessage(
+                    "Password must be at least 6 characters.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            submitButton.disabled =
+                true;
+
 
             submitButton.textContent =
                 authMode === "login"
-                    ? "Login"
-                    : "Create account";
+                    ? "Logging in..."
+                    : "Creating account...";
+
+
+            clearAuthMessage();
+
+
+            try {
+
+                if (
+                    authMode === "login"
+                ) {
+
+                    const {
+                        error
+                    } =
+                        await supabaseClient
+                            .auth
+                            .signInWithPassword({
+                                email,
+                                password
+                            });
+
+
+                    if (error) {
+                        throw error;
+                    }
+
+
+                    showAuthMessage(
+                        "Login successful.",
+                        "success"
+                    );
+
+
+                } else {
+
+                    const {
+                        data,
+                        error
+                    } =
+                        await supabaseClient
+                            .auth
+                            .signUp({
+                                email,
+                                password
+                            });
+
+
+                    if (error) {
+                        throw error;
+                    }
+
+
+                    if (data.user) {
+
+                        await createOrUpdateProfile(
+                            data.user,
+                            name ||
+                            email.split("@")[0]
+                        );
+                    }
+
+
+                    if (!data.session) {
+
+                        showAuthMessage(
+                            "Account created. Check your email to confirm your account, then log in.",
+                            "success"
+                        );
+
+                    } else {
+
+                        showAuthMessage(
+                            "Account created successfully.",
+                            "success"
+                        );
+                    }
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "Authentication error:",
+                    error
+                );
+
+
+                showAuthMessage(
+                    getFriendlyAuthError(
+                        error
+                    ),
+                    "error"
+                );
+
+            } finally {
+
+                submitButton.disabled =
+                    false;
+
+
+                submitButton.textContent =
+                    authMode === "login"
+                        ? "Login"
+                        : "Create account";
+            }
+
         }
-    });
+    );
 }
 
 
@@ -386,13 +623,24 @@ function createAuthScreen() {
 
 function addAuthStyles() {
 
-    if (document.getElementById("novaAuthStyles")) {
+    if (
+        document.getElementById(
+            "novaAuthStyles"
+        )
+    ) {
         return;
     }
 
-    const style = document.createElement("style");
 
-    style.id = "novaAuthStyles";
+    const style =
+        document.createElement(
+            "style"
+        );
+
+
+    style.id =
+        "novaAuthStyles";
+
 
     style.textContent = `
         #novaAuthScreen {
@@ -529,13 +777,18 @@ function addAuthStyles() {
         }
 
         @media (max-width: 480px) {
+
             .nova-auth-box {
                 padding: 28px 20px;
             }
+
         }
     `;
 
-    document.head.appendChild(style);
+
+    document.head.appendChild(
+        style
+    );
 }
 
 
@@ -544,82 +797,143 @@ function addAuthStyles() {
 ========================================= */
 
 function showAuthScreen() {
+
     createAuthScreen();
 
-    authScreen.style.display = "flex";
+    authScreen.style.display =
+        "flex";
 
-    document.body.style.overflow = "hidden";
+    document.body.style.overflow =
+        "hidden";
 }
+
 
 function hideAuthScreen() {
+
     createAuthScreen();
 
-    authScreen.style.display = "none";
+    authScreen.style.display =
+        "none";
 
-    document.body.style.overflow = "";
+    document.body.style.overflow =
+        "";
 }
 
-function showAuthMessage(message, type) {
+
+function showAuthMessage(
+    message,
+    type
+) {
+
     const element =
-        document.getElementById("novaAuthMessage");
+        document.getElementById(
+            "novaAuthMessage"
+        );
+
 
     if (!element) return;
 
-    element.textContent = message;
+
+    element.textContent =
+        message;
+
+
     element.className =
         `nova-auth-message ${type || ""}`;
 }
 
+
 function clearAuthMessage() {
+
     const element =
-        document.getElementById("novaAuthMessage");
+        document.getElementById(
+            "novaAuthMessage"
+        );
+
 
     if (!element) return;
 
-    element.textContent = "";
-    element.className = "nova-auth-message";
+
+    element.textContent =
+        "";
+
+
+    element.className =
+        "nova-auth-message";
 }
 
-function showConfigError(message) {
+
+function showConfigError(
+    message
+) {
+
     showAuthScreen();
+
 
     showAuthMessage(
         "NOVA could not connect to its account system. Check the Vercel deployment and /api/config.",
         "error"
     );
 
-    console.error(message);
+
+    console.error(
+        message
+    );
 }
 
-function getFriendlyAuthError(error) {
+
+function getFriendlyAuthError(
+    error
+) {
 
     const message =
         error?.message ||
         "Something went wrong.";
 
+
+    const lower =
+        message.toLowerCase();
+
+
     if (
-        message.toLowerCase().includes("invalid login credentials")
+        lower.includes(
+            "invalid login credentials"
+        )
     ) {
+
         return "Incorrect email or password.";
     }
 
+
     if (
-        message.toLowerCase().includes("user already registered")
+        lower.includes(
+            "user already registered"
+        )
     ) {
+
         return "An account with this email already exists. Try logging in.";
     }
 
+
     if (
-        message.toLowerCase().includes("email not confirmed")
+        lower.includes(
+            "email not confirmed"
+        )
     ) {
+
         return "Please confirm your email before logging in.";
     }
 
+
     if (
-        message.toLowerCase().includes("password should be at least")
+        lower.includes(
+            "password should be at least"
+        )
     ) {
+
         return "Your password must be at least 6 characters.";
     }
+
 
     return message;
 }
@@ -629,24 +943,38 @@ function getFriendlyAuthError(error) {
    PROFILE
 ========================================= */
 
-async function createOrUpdateProfile(user, displayName) {
+async function createOrUpdateProfile(
+    user,
+    displayName
+) {
 
-    if (!supabaseClient || !user) return;
+    if (
+        !supabaseClient ||
+        !user
+    ) {
+        return;
+    }
 
-    const { error } =
+
+    const {
+        error
+    } =
         await supabaseClient
             .from("profiles")
             .upsert(
                 {
                     id: user.id,
-                    display_name: displayName || null
+                    display_name:
+                        displayName || null
                 },
                 {
                     onConflict: "id"
                 }
             );
 
+
     if (error) {
+
         console.error(
             "Profile error:",
             error
@@ -661,56 +989,88 @@ async function createOrUpdateProfile(user, displayName) {
 
 async function loadUserData() {
 
-    if (!currentUser || !supabaseClient) {
+    if (
+        !currentUser ||
+        !supabaseClient
+    ) {
         return;
     }
+
 
     try {
 
         await createOrUpdateProfile(
             currentUser,
-            currentUser.user_metadata?.display_name ||
-            currentUser.email?.split("@")[0] ||
+            currentUser
+                .user_metadata
+                ?.display_name ||
+            currentUser.email
+                ?.split("@")[0] ||
             "NOVA User"
         );
 
 
-        /* -------------------------------
+        /* --------------------------------
            LOAD CONVERSATIONS
         -------------------------------- */
 
         const {
             data: conversationData,
             error: conversationError
-        } = await supabaseClient
-            .from("conversations")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .order("updated_at", {
-                ascending: false
-            });
+        } =
+            await supabaseClient
+                .from("conversations")
+                .select("*")
+                .eq(
+                    "user_id",
+                    currentUser.id
+                )
+                .order(
+                    "updated_at",
+                    {
+                        ascending: false
+                    }
+                );
+
 
         if (conversationError) {
             throw conversationError;
         }
 
+
         conversations = [];
 
-        for (const conversation of conversationData || []) {
+
+        for (
+            const conversation
+            of conversationData || []
+        ) {
 
             const {
                 data: messageData,
                 error: messageError
-            } = await supabaseClient
-                .from("messages")
-                .select("*")
-                .eq("conversation_id", conversation.id)
-                .eq("user_id", currentUser.id)
-                .order("created_at", {
-                    ascending: true
-                });
+            } =
+                await supabaseClient
+                    .from("messages")
+                    .select("*")
+                    .eq(
+                        "conversation_id",
+                        conversation.id
+                    )
+                    .eq(
+                        "user_id",
+                        currentUser.id
+                    )
+                    .order(
+                        "created_at",
+                        {
+                            ascending: true
+                        }
+                    );
+
 
             if (messageError) {
+
                 console.error(
                     "Message loading error:",
                     messageError
@@ -719,67 +1079,121 @@ async function loadUserData() {
                 continue;
             }
 
+
             conversations.push({
-                id: conversation.id,
-                title: conversation.title || "New chat",
-                createdAt: conversation.created_at,
-                updatedAt: conversation.updated_at,
-                messages: (messageData || []).map(message => ({
-                    role:
-                        message.role === "assistant"
-                            ? "ai"
-                            : message.role,
-                    content: message.content
-                }))
+
+                id:
+                    conversation.id,
+
+                title:
+                    conversation.title ||
+                    "New chat",
+
+                createdAt:
+                    conversation.created_at,
+
+                updatedAt:
+                    conversation.updated_at,
+
+                messages:
+                    (messageData || [])
+                        .map(message => ({
+
+                            role:
+                                message.role ===
+                                "assistant"
+                                    ? "ai"
+                                    : message.role,
+
+                            content:
+                                message.content
+
+                        }))
             });
         }
 
 
-        /* -------------------------------
+        /* --------------------------------
            LOAD MEMORIES
         -------------------------------- */
 
         const {
             data: memoryData,
             error: memoryError
-        } = await supabaseClient
-            .from("memories")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .order("created_at", {
-                ascending: false
-            });
+        } =
+            await supabaseClient
+                .from("memories")
+                .select("*")
+                .eq(
+                    "user_id",
+                    currentUser.id
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
 
         if (memoryError) {
             throw memoryError;
         }
 
-        novaMemories = (memoryData || []).map(memory => ({
-            id: memory.id,
-            content: memory.content,
-            createdAt: memory.created_at,
-            updatedAt: memory.updated_at
-        }));
+
+        novaMemories =
+            (memoryData || [])
+                .map(memory => ({
+
+                    id:
+                        memory.id,
+
+                    content:
+                        memory.content,
+
+                    createdAt:
+                        memory.created_at,
+
+                    updatedAt:
+                        memory.updated_at
+
+                }));
 
 
-        /* -------------------------------
+        /* --------------------------------
            SELECT MOST RECENT CHAT
         -------------------------------- */
 
-        if (conversations.length > 0) {
+        if (
+            conversations.length > 0
+        ) {
+
             currentConversationId =
                 conversations[0].id;
+
         } else {
-            currentConversationId = null;
+
+            currentConversationId =
+                null;
         }
+
 
         renderConversationList();
 
-        if (currentConversationId) {
-            loadConversation(currentConversationId);
+
+        if (
+            currentConversationId
+        ) {
+
+            loadConversation(
+                currentConversationId
+            );
+
         } else {
+
             clearMessages();
         }
+
 
     } catch (error) {
 
@@ -797,52 +1211,83 @@ async function loadUserData() {
 
 function getMemoryContext() {
 
-    if (!novaMemories.length) {
+    if (
+        !novaMemories.length
+    ) {
         return "";
     }
+
 
     return `
 The following are memories NOVA has saved about the user.
 Use them only when relevant.
 
 ${novaMemories
-    .map(memory => `- ${memory.content}`)
+    .map(
+        memory =>
+            `- ${memory.content}`
+    )
     .join("\n")}
 `;
 }
 
 
-async function addMemory(content) {
+async function addMemory(
+    content
+) {
 
-    if (!content || !currentUser || !supabaseClient) {
+    if (
+        !content ||
+        !currentUser ||
+        !supabaseClient
+    ) {
         return;
     }
 
-    const cleanContent = content.trim();
 
-    if (!cleanContent) return;
+    const cleanContent =
+        content.trim();
 
-    const alreadyExists = novaMemories.some(
-        memory =>
-            memory.content.toLowerCase() ===
-            cleanContent.toLowerCase()
-    );
+
+    if (!cleanContent) {
+        return;
+    }
+
+
+    const alreadyExists =
+        novaMemories.some(
+            memory =>
+                memory.content
+                    .toLowerCase() ===
+                cleanContent
+                    .toLowerCase()
+        );
+
 
     if (alreadyExists) {
         return;
     }
 
-    const { data, error } =
+
+    const {
+        data,
+        error
+    } =
         await supabaseClient
             .from("memories")
             .insert({
-                user_id: currentUser.id,
-                content: cleanContent
+                user_id:
+                    currentUser.id,
+
+                content:
+                    cleanContent
             })
             .select()
             .single();
 
+
     if (error) {
+
         console.error(
             "Could not save memory:",
             error
@@ -851,64 +1296,122 @@ async function addMemory(content) {
         return;
     }
 
+
     if (data) {
+
         novaMemories.unshift({
-            id: data.id,
-            content: data.content,
-            createdAt: data.created_at,
-            updatedAt: data.updated_at
+
+            id:
+                data.id,
+
+            content:
+                data.content,
+
+            createdAt:
+                data.created_at,
+
+            updatedAt:
+                data.updated_at
+
         });
     }
 }
 
 
-function detectMemory(message) {
+function detectMemory(
+    message
+) {
 
     const patterns = [
+
         {
-            regex: /my name is (.+)/i,
-            label: "The user's name is"
+            regex:
+                /my name is (.+)/i,
+
+            label:
+                "The user's name is"
         },
+
         {
-            regex: /i live in (.+)/i,
-            label: "The user lives in"
+            regex:
+                /i live in (.+)/i,
+
+            label:
+                "The user lives in"
         },
+
         {
-            regex: /i am learning (.+)/i,
-            label: "The user is learning"
+            regex:
+                /i am learning (.+)/i,
+
+            label:
+                "The user is learning"
         },
+
         {
-            regex: /my project is called (.+)/i,
-            label: "The user's project is called"
+            regex:
+                /my project is called (.+)/i,
+
+            label:
+                "The user's project is called"
         },
+
         {
-            regex: /i work on (.+)/i,
-            label: "The user works on"
+            regex:
+                /i work on (.+)/i,
+
+            label:
+                "The user works on"
         },
+
         {
-            regex: /my goal is (.+)/i,
-            label: "The user's goal is"
+            regex:
+                /my goal is (.+)/i,
+
+            label:
+                "The user's goal is"
         },
+
         {
-            regex: /i want to become (.+)/i,
-            label: "The user wants to become"
+            regex:
+                /i want to become (.+)/i,
+
+            label:
+                "The user wants to become"
         }
+
     ];
 
-    for (const pattern of patterns) {
 
-        const match = message.match(pattern.regex);
+    for (
+        const pattern
+        of patterns
+    ) {
 
-        if (match && match[1]) {
+        const match =
+            message.match(
+                pattern.regex
+            );
+
+
+        if (
+            match &&
+            match[1]
+        ) {
 
             const value =
                 match[1]
                     .trim()
-                    .replace(/[.!?]+$/, "");
+                    .replace(
+                        /[.!?]+$/,
+                        ""
+                    );
+
 
             addMemory(
                 `${pattern.label} ${value}.`
             );
+
 
             break;
         }
@@ -922,25 +1425,33 @@ function detectMemory(message) {
 
 async function createConversation() {
 
-    if (!currentUser || !supabaseClient) {
+    if (
+        !currentUser ||
+        !supabaseClient
+    ) {
         return null;
     }
 
-    const title = "New chat";
 
     const {
         data,
         error
-    } = await supabaseClient
-        .from("conversations")
-        .insert({
-            user_id: currentUser.id,
-            title
-        })
-        .select()
-        .single();
+    } =
+        await supabaseClient
+            .from("conversations")
+            .insert({
+                user_id:
+                    currentUser.id,
+
+                title:
+                    "New chat"
+            })
+            .select()
+            .single();
+
 
     if (error) {
+
         console.error(
             "Could not create conversation:",
             error
@@ -949,19 +1460,37 @@ async function createConversation() {
         return null;
     }
 
+
     const conversation = {
-        id: data.id,
-        title: data.title,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-        messages: []
+
+        id:
+            data.id,
+
+        title:
+            data.title,
+
+        createdAt:
+            data.created_at,
+
+        updatedAt:
+            data.updated_at,
+
+        messages:
+            []
     };
 
-    conversations.unshift(conversation);
 
-    currentConversationId = conversation.id;
+    conversations.unshift(
+        conversation
+    );
+
+
+    currentConversationId =
+        conversation.id;
+
 
     renderConversationList();
+
 
     return conversation;
 }
@@ -971,7 +1500,8 @@ function getCurrentConversation() {
 
     return conversations.find(
         conversation =>
-            conversation.id === currentConversationId
+            conversation.id ===
+            currentConversationId
     );
 }
 
@@ -989,23 +1519,37 @@ async function updateConversationTitle(
         return;
     }
 
-    conversation.title = title;
 
-    const { error } =
+    conversation.title =
+        title;
+
+
+    const {
+        error
+    } =
         await supabaseClient
             .from("conversations")
             .update({
                 title
             })
-            .eq("id", conversation.id)
-            .eq("user_id", currentUser.id);
+            .eq(
+                "id",
+                conversation.id
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            );
+
 
     if (error) {
+
         console.error(
             "Could not update conversation:",
             error
         );
     }
+
 
     renderConversationList();
 }
@@ -1023,17 +1567,41 @@ async function touchConversation(
         return;
     }
 
-    const now = new Date().toISOString();
 
-    conversation.updatedAt = now;
+    const now =
+        new Date().toISOString();
 
-    await supabaseClient
-        .from("conversations")
-        .update({
-            updated_at: now
-        })
-        .eq("id", conversation.id)
-        .eq("user_id", currentUser.id);
+
+    conversation.updatedAt =
+        now;
+
+
+    const {
+        error
+    } =
+        await supabaseClient
+            .from("conversations")
+            .update({
+                updated_at:
+                    now
+            })
+            .eq(
+                "id",
+                conversation.id
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            );
+
+
+    if (error) {
+
+        console.error(
+            "Could not update conversation time:",
+            error
+        );
+    }
 }
 
 
@@ -1043,11 +1611,18 @@ async function touchConversation(
 
 function renderConversationList() {
 
-    if (!conversationList) return;
+    if (!conversationList) {
+        return;
+    }
 
-    conversationList.innerHTML = "";
 
-    if (!conversations.length) {
+    conversationList.innerHTML =
+        "";
+
+
+    if (
+        !conversations.length
+    ) {
 
         conversationList.innerHTML = `
             <div style="
@@ -1062,44 +1637,62 @@ function renderConversationList() {
         return;
     }
 
-    conversations.forEach(conversation => {
 
-        const item =
-            document.createElement("div");
+    conversations.forEach(
+        conversation => {
 
-        item.className =
-            "conversation-item";
-
-        if (
-            conversation.id ===
-            currentConversationId
-        ) {
-            item.classList.add("active");
-        }
-
-        item.textContent =
-            conversation.title ||
-            "New chat";
-
-        item.addEventListener(
-            "click",
-            () => {
-
-                currentConversationId =
-                    conversation.id;
-
-                loadConversation(
-                    conversation.id
+            const item =
+                document.createElement(
+                    "div"
                 );
 
-                renderConversationList();
 
-                closeMobileSidebar();
+            item.className =
+                "conversation-item";
+
+
+            if (
+                conversation.id ===
+                currentConversationId
+            ) {
+
+                item.classList.add(
+                    "active"
+                );
             }
-        );
 
-        conversationList.appendChild(item);
-    });
+
+            item.textContent =
+                conversation.title ||
+                "New chat";
+
+
+            item.addEventListener(
+                "click",
+                () => {
+
+                    currentConversationId =
+                        conversation.id;
+
+
+                    loadConversation(
+                        conversation.id
+                    );
+
+
+                    renderConversationList();
+
+
+                    closeMobileSidebar();
+                }
+            );
+
+
+            conversationList.appendChild(
+                item
+            );
+        }
+    );
 }
 
 
@@ -1107,29 +1700,42 @@ function renderConversationList() {
    LOAD CONVERSATION
 ========================================= */
 
-function loadConversation(id) {
+function loadConversation(
+    id
+) {
 
     const conversation =
         conversations.find(
-            item => item.id === id
+            item =>
+                item.id === id
         );
 
+
     if (!conversation) {
+
         clearMessages();
+
         return;
     }
 
-    currentConversationId = id;
+
+    currentConversationId =
+        id;
+
 
     clearMessages();
 
-    conversation.messages.forEach(message => {
 
-        addMessageToScreen(
-            message.role,
-            message.content
-        );
-    });
+    conversation.messages.forEach(
+        message => {
+
+            addMessageToScreen(
+                message.role,
+                message.content
+            );
+        }
+    );
+
 
     renderConversationList();
 }
@@ -1141,20 +1747,19 @@ function loadConversation(id) {
 
 function clearMessages() {
 
-    if (!messagesContainer) return;
+    if (!messagesContainer) {
+        return;
+    }
 
-    messagesContainer.innerHTML = "";
+
+    messagesContainer.innerHTML =
+        "";
+
 
     if (welcomeScreen) {
-        welcomeScreen.style.display = "flex";
 
-        if (
-            messagesContainer.parentElement &&
-            messagesContainer.parentElement
-                .contains(welcomeScreen)
-        ) {
-            // Keep existing welcome screen.
-        }
+        welcomeScreen.style.display =
+            "flex";
     }
 }
 
@@ -1162,7 +1767,9 @@ function clearMessages() {
 function hideWelcomeScreen() {
 
     if (welcomeScreen) {
-        welcomeScreen.style.display = "none";
+
+        welcomeScreen.style.display =
+            "none";
     }
 }
 
@@ -1174,25 +1781,49 @@ function addMessageToScreen(
 
     hideWelcomeScreen();
 
-    if (!messagesContainer) return;
+
+    if (!messagesContainer) {
+        return;
+    }
+
 
     const wrapper =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
+
 
     wrapper.className =
-        `message ${role === "user" ? "user-message" : "ai-message"}`;
+        `message ${
+            role === "user"
+                ? "user-message"
+                : "ai-message"
+        }`;
+
 
     const bubble =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
+
 
     bubble.className =
         "message-bubble";
 
-    bubble.textContent = content;
 
-    wrapper.appendChild(bubble);
+    bubble.textContent =
+        content;
 
-    messagesContainer.appendChild(wrapper);
+
+    wrapper.appendChild(
+        bubble
+    );
+
+
+    messagesContainer.appendChild(
+        wrapper
+    );
+
 
     scrollToBottom();
 }
@@ -1216,26 +1847,40 @@ async function saveMessageToSupabase(
         return null;
     }
 
+
     const databaseRole =
         role === "ai"
             ? "assistant"
             : role;
 
+
     const {
         data,
         error
-    } = await supabaseClient
-        .from("messages")
-        .insert({
-            conversation_id: conversationId,
-            user_id: currentUser.id,
-            role: databaseRole,
-            content
-        })
-        .select()
-        .single();
+    } =
+        await supabaseClient
+            .from("messages")
+            .insert({
+
+                conversation_id:
+                    conversationId,
+
+                user_id:
+                    currentUser.id,
+
+                role:
+                    databaseRole,
+
+                content:
+                    content
+
+            })
+            .select()
+            .single();
+
 
     if (error) {
+
         console.error(
             "Could not save message:",
             error
@@ -1243,6 +1888,7 @@ async function saveMessageToSupabase(
 
         return null;
     }
+
 
     return data;
 }
@@ -1254,57 +1900,93 @@ async function saveMessageToSupabase(
 
 async function sendMessage() {
 
-    if (isSending) return;
-
-    const text =
-        messageInput?.value?.trim();
-
-    if (!text) return;
-
-    if (!currentUser) {
-        showAuthScreen();
+    if (isSending) {
         return;
     }
 
+
+    const text =
+        messageInput
+            ?.value
+            ?.trim();
+
+
+    if (!text) {
+        return;
+    }
+
+
+    if (!currentUser) {
+
+        showAuthScreen();
+
+        return;
+    }
+
+
     isSending = true;
 
+
     if (sendBtn) {
-        sendBtn.disabled = true;
+
+        sendBtn.disabled =
+            true;
     }
+
 
     try {
 
         let conversation =
             getCurrentConversation();
 
+
         if (!conversation) {
+
             conversation =
                 await createConversation();
         }
 
+
         if (!conversation) {
+
             throw new Error(
                 "Could not create a conversation."
             );
         }
 
+
         hideWelcomeScreen();
 
-        messageInput.value = "";
 
-        messageInput.style.height = "auto";
+        messageInput.value =
+            "";
 
-        detectMemory(text);
+
+        messageInput.style.height =
+            "auto";
+
+
+        detectMemory(
+            text
+        );
+
 
         conversation.messages.push({
-            role: "user",
-            content: text
+
+            role:
+                "user",
+
+            content:
+                text
+
         });
+
 
         addMessageToScreen(
             "user",
             text
         );
+
 
         await saveMessageToSupabase(
             conversation.id,
@@ -1313,31 +1995,45 @@ async function sendMessage() {
         );
 
 
-        /* -------------------------------
+        /* --------------------------------
            SET TITLE
         -------------------------------- */
 
         const userMessages =
             conversation.messages.filter(
                 message =>
-                    message.role === "user"
+                    message.role ===
+                    "user"
             );
+
 
         if (
             userMessages.length === 1 &&
-            conversation.title === "New chat"
+            conversation.title ===
+                "New chat"
         ) {
 
             let title =
                 text
-                    .replace(/\s+/g, " ")
+                    .replace(
+                        /\s+/g,
+                        " "
+                    )
                     .trim();
 
-            if (title.length > 45) {
+
+            if (
+                title.length > 45
+            ) {
+
                 title =
-                    title.substring(0, 45) +
+                    title.substring(
+                        0,
+                        45
+                    ) +
                     "...";
             }
+
 
             await updateConversationTitle(
                 conversation,
@@ -1351,13 +2047,14 @@ async function sendMessage() {
         );
 
 
-        /* -------------------------------
+        /* --------------------------------
            AI RESPONSE
         -------------------------------- */
 
-        await generateLocalResponse(
-            text
+        await generateAIResponse(
+            conversation
         );
+
 
     } catch (error) {
 
@@ -1366,18 +2063,25 @@ async function sendMessage() {
             error
         );
 
+
         addMessageToScreen(
             "ai",
             "Something went wrong. Please try again."
         );
 
+
     } finally {
 
-        isSending = false;
+        isSending =
+            false;
+
 
         if (sendBtn) {
-            sendBtn.disabled = false;
+
+            sendBtn.disabled =
+                false;
         }
+
 
         messageInput?.focus();
     }
@@ -1388,22 +2092,24 @@ async function sendMessage() {
    AI RESPONSE
 ========================================= */
 
-async function generateLocalResponse(
-    userMessage
+async function generateAIResponse(
+    conversation
 ) {
-
-    const conversation =
-        getCurrentConversation();
 
     if (!conversation) {
         return;
     }
 
+
     const loadingElement =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
+
 
     loadingElement.className =
         "message ai-message nova-loading";
+
 
     loadingElement.innerHTML = `
         <div class="message-bubble">
@@ -1411,109 +2117,206 @@ async function generateLocalResponse(
         </div>
     `;
 
+
     messagesContainer.appendChild(
         loadingElement
     );
+
 
     scrollToBottom();
 
 
     try {
 
-        const messagesForAI = [];
+        const messagesForAI =
+            [];
+
+
+        /* --------------------------------
+           MEMORY CONTEXT
+        -------------------------------- */
 
         const memoryContext =
             getMemoryContext();
 
-        if (memoryContext) {
 
-            messagesForAI.push({
-                role: "system",
-                content: `
+        messagesForAI.push({
+
+            role:
+                "system",
+
+            content: `
 You are NOVA, an AI workspace assistant.
+
+Be helpful, accurate, clear, practical and honest.
 
 ${memoryContext}
 
-Use these memories naturally when relevant.
-Do not mention the memory system unless asked.
+Use saved memories naturally when relevant.
+Do not mention the memory system unless the user asks about it.
 `
-            });
+        });
 
-        } else {
 
-            messagesForAI.push({
-                role: "system",
-                content: `
-You are NOVA, an AI workspace assistant.
-Be helpful, accurate, clear and practical.
-`
-            });
-        }
-
+        /* --------------------------------
+           CONVERSATION HISTORY
+        -------------------------------- */
 
         conversation.messages.forEach(
             message => {
 
                 messagesForAI.push({
+
                     role:
                         message.role === "ai"
                             ? "assistant"
                             : message.role,
-                    content: message.content
+
+                    content:
+                        message.content
+
                 });
 
             }
         );
 
 
+        console.log(
+            "NOVA: sending AI request",
+            messagesForAI
+        );
+
+
+        /* --------------------------------
+           API REQUEST
+        -------------------------------- */
+
         const response =
-            await fetch("/api/chat", {
-                method: "POST",
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-                body: JSON.stringify({
-                    messages:
-                        messagesForAI
-                })
-            });
+            await fetch(
+                "/api/chat",
+                {
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            messages:
+                                messagesForAI
+                        })
+                }
+            );
 
 
-        const data =
-            await response.json();
+        /* --------------------------------
+           READ RESPONSE SAFELY
+        -------------------------------- */
+
+        let data = null;
+
+        const responseText =
+            await response.text();
 
 
-        if (!response.ok) {
+        try {
+
+            data =
+                responseText
+                    ? JSON.parse(
+                        responseText
+                    )
+                    : {};
+
+        } catch {
 
             throw new Error(
-                data.error ||
-                "AI request failed."
+                `NOVA API returned invalid data. HTTP ${response.status}`
             );
         }
 
 
-        const aiText =
-            data.reply ||
-            data.message ||
-            data.content ||
-            "I couldn't generate a response.";
+        console.log(
+            "NOVA API response:",
+            response.status,
+            data
+        );
 
+
+        /* --------------------------------
+           API ERROR
+        -------------------------------- */
+
+        if (!response.ok) {
+
+            throw new Error(
+                data?.error ||
+                data?.message ||
+                `AI request failed with HTTP ${response.status}.`
+            );
+        }
+
+
+        /* --------------------------------
+           GET AI ANSWER
+        -------------------------------- */
+
+        const aiText =
+            data?.answer ||
+            data?.reply ||
+            data?.message ||
+            data?.content;
+
+
+        if (
+            typeof aiText !== "string" ||
+            !aiText.trim()
+        ) {
+
+            throw new Error(
+                "The AI service returned an empty response."
+            );
+        }
+
+
+        /* --------------------------------
+           REMOVE LOADING
+        -------------------------------- */
 
         loadingElement.remove();
 
 
+        /* --------------------------------
+           SAVE AI MESSAGE LOCALLY
+        -------------------------------- */
+
         conversation.messages.push({
-            role: "ai",
-            content: aiText
+
+            role:
+                "ai",
+
+            content:
+                aiText
+
         });
 
+
+        /* --------------------------------
+           SHOW AI MESSAGE
+        -------------------------------- */
 
         addMessageToScreen(
             "ai",
             aiText
         );
 
+
+        /* --------------------------------
+           SAVE AI MESSAGE TO SUPABASE
+        -------------------------------- */
 
         await saveMessageToSupabase(
             conversation.id,
@@ -1522,9 +2325,14 @@ Be helpful, accurate, clear and practical.
         );
 
 
+        /* --------------------------------
+           UPDATE CONVERSATION
+        -------------------------------- */
+
         await touchConversation(
             conversation
         );
+
 
         renderConversationList();
 
@@ -1536,11 +2344,84 @@ Be helpful, accurate, clear and practical.
             error
         );
 
+
         loadingElement.remove();
+
+
+        /*
+           IMPORTANT:
+           The user's message stays visible.
+           We only add the actual error message.
+        */
+
+        let errorMessage =
+            "I couldn't reach the AI service right now. Please try again.";
+
+
+        const errorText =
+            error?.message ||
+            "";
+
+
+        if (
+            errorText.includes(
+                "HTTP 401"
+            )
+        ) {
+
+            errorMessage =
+                "NOVA's AI service rejected the request. Check the OpenRouter API key.";
+
+        } else if (
+            errorText.includes(
+                "HTTP 402"
+            )
+        ) {
+
+            errorMessage =
+                "The AI provider requires available credits or a supported free model.";
+
+        } else if (
+            errorText.includes(
+                "HTTP 403"
+            )
+        ) {
+
+            errorMessage =
+                "The AI provider rejected this request.";
+
+        } else if (
+            errorText.includes(
+                "HTTP 404"
+            )
+        ) {
+
+            errorMessage =
+                "NOVA's AI endpoint could not be found.";
+
+        } else if (
+            errorText.includes(
+                "HTTP 429"
+            )
+        ) {
+
+            errorMessage =
+                "The AI service is temporarily rate-limited. Please try again shortly.";
+
+        } else if (
+            errorText.includes(
+                "HTTP 500"
+            )
+        ) {
+
+            errorMessage =
+                "NOVA's server encountered an error while contacting the AI service.";
+        }
+
 
         addMessageToScreen(
             "ai",
-            "I couldn't reach the AI service right now. Please try again."
+            errorMessage
         );
     }
 }
@@ -1557,15 +2438,21 @@ function renderMemoryPanel() {
             "novaMemoryPanel"
         );
 
+
     if (existing) {
         existing.remove();
     }
 
+
     const panel =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
+
 
     panel.id =
         "novaMemoryPanel";
+
 
     panel.innerHTML = `
         <div class="nova-memory-overlay"></div>
@@ -1598,10 +2485,17 @@ function renderMemoryPanel() {
         </div>
     `;
 
-    document.body.appendChild(panel);
+
+    document.body.appendChild(
+        panel
+    );
+
 
     const style =
-        document.createElement("style");
+        document.createElement(
+            "style"
+        );
+
 
     style.textContent = `
         #novaMemoryPanel {
@@ -1681,7 +2575,10 @@ function renderMemoryPanel() {
         }
     `;
 
-    document.head.appendChild(style);
+
+    document.head.appendChild(
+        style
+    );
 
 
     const list =
@@ -1690,7 +2587,9 @@ function renderMemoryPanel() {
         );
 
 
-    if (!novaMemories.length) {
+    if (
+        !novaMemories.length
+    ) {
 
         list.innerHTML = `
             <p>No memories saved yet.</p>
@@ -1698,52 +2597,85 @@ function renderMemoryPanel() {
 
     } else {
 
-        novaMemories.forEach(memory => {
+        novaMemories.forEach(
+            memory => {
 
-            const item =
-                document.createElement("div");
+                const item =
+                    document.createElement(
+                        "div"
+                    );
 
-            item.className =
-                "nova-memory-item";
 
-            const text =
-                document.createElement("span");
+                item.className =
+                    "nova-memory-item";
 
-            text.textContent =
-                memory.content;
 
-            const deleteButton =
-                document.createElement("button");
+                const text =
+                    document.createElement(
+                        "span"
+                    );
 
-            deleteButton.className =
-                "nova-memory-delete";
 
-            deleteButton.textContent =
-                "Delete";
+                text.textContent =
+                    memory.content;
 
-            deleteButton.addEventListener(
-                "click",
-                () => deleteMemory(memory.id)
-            );
 
-            item.appendChild(text);
-            item.appendChild(deleteButton);
+                const deleteButton =
+                    document.createElement(
+                        "button"
+                    );
 
-            list.appendChild(item);
-        });
+
+                deleteButton.className =
+                    "nova-memory-delete";
+
+
+                deleteButton.textContent =
+                    "Delete";
+
+
+                deleteButton.addEventListener(
+                    "click",
+                    () =>
+                        deleteMemory(
+                            memory.id
+                        )
+                );
+
+
+                item.appendChild(
+                    text
+                );
+
+
+                item.appendChild(
+                    deleteButton
+                );
+
+
+                list.appendChild(
+                    item
+                );
+            }
+        );
     }
 
 
     document
-        .getElementById("closeMemoryPanel")
+        .getElementById(
+            "closeMemoryPanel"
+        )
         .addEventListener(
             "click",
-            () => panel.remove()
+            () =>
+                panel.remove()
         );
 
 
     document
-        .getElementById("clearAllMemories")
+        .getElementById(
+            "clearAllMemories"
+        )
         .addEventListener(
             "click",
             clearAllMemories
@@ -1751,18 +2683,33 @@ function renderMemoryPanel() {
 }
 
 
-async function deleteMemory(id) {
+async function deleteMemory(
+    id
+) {
 
-    if (!currentUser || !supabaseClient) {
+    if (
+        !currentUser ||
+        !supabaseClient
+    ) {
         return;
     }
 
-    const { error } =
+
+    const {
+        error
+    } =
         await supabaseClient
             .from("memories")
             .delete()
-            .eq("id", id)
-            .eq("user_id", currentUser.id);
+            .eq(
+                "id",
+                id
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            );
+
 
     if (error) {
 
@@ -1774,11 +2721,13 @@ async function deleteMemory(id) {
         return;
     }
 
+
     novaMemories =
         novaMemories.filter(
             memory =>
                 memory.id !== id
         );
+
 
     renderMemoryPanel();
 }
@@ -1786,22 +2735,36 @@ async function deleteMemory(id) {
 
 async function clearAllMemories() {
 
-    if (!currentUser || !supabaseClient) {
+    if (
+        !currentUser ||
+        !supabaseClient
+    ) {
         return;
     }
+
 
     const confirmed =
         confirm(
             "Delete all NOVA memories?"
         );
 
-    if (!confirmed) return;
 
-    const { error } =
+    if (!confirmed) {
+        return;
+    }
+
+
+    const {
+        error
+    } =
         await supabaseClient
             .from("memories")
             .delete()
-            .eq("user_id", currentUser.id);
+            .eq(
+                "user_id",
+                currentUser.id
+            );
+
 
     if (error) {
 
@@ -1813,7 +2776,9 @@ async function clearAllMemories() {
         return;
     }
 
+
     novaMemories = [];
+
 
     renderMemoryPanel();
 }
@@ -1826,14 +2791,19 @@ async function clearAllMemories() {
 function openSettings() {
 
     const panel =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
+
 
     panel.id =
         "novaSettingsPanel";
 
+
     const email =
         currentUser?.email ||
         "Unknown user";
+
 
     panel.innerHTML = `
         <div class="nova-settings-overlay"></div>
@@ -1874,11 +2844,17 @@ function openSettings() {
         </div>
     `;
 
-    document.body.appendChild(panel);
+
+    document.body.appendChild(
+        panel
+    );
 
 
     const style =
-        document.createElement("style");
+        document.createElement(
+            "style"
+        );
+
 
     style.textContent = `
         #novaSettingsPanel {
@@ -1936,30 +2912,42 @@ function openSettings() {
         }
     `;
 
-    document.head.appendChild(style);
+
+    document.head.appendChild(
+        style
+    );
 
 
     document
-        .getElementById("closeNovaSettings")
+        .getElementById(
+            "closeNovaSettings"
+        )
         .addEventListener(
             "click",
-            () => panel.remove()
+            () =>
+                panel.remove()
         );
 
 
     document
-        .getElementById("openNovaMemories")
+        .getElementById(
+            "openNovaMemories"
+        )
         .addEventListener(
             "click",
             () => {
+
                 panel.remove();
+
                 renderMemoryPanel();
             }
         );
 
 
     document
-        .getElementById("novaLogout")
+        .getElementById(
+            "novaLogout"
+        )
         .addEventListener(
             "click",
             logout
@@ -1969,12 +2957,21 @@ function openSettings() {
 
 async function logout() {
 
-    if (!supabaseClient) return;
+    if (!supabaseClient) {
+        return;
+    }
 
-    const { error } =
-        await supabaseClient.auth.signOut();
+
+    const {
+        error
+    } =
+        await supabaseClient
+            .auth
+            .signOut();
+
 
     if (error) {
+
         console.error(
             "Logout error:",
             error
@@ -1983,16 +2980,23 @@ async function logout() {
         return;
     }
 
+
     conversations = [];
+
     novaMemories = [];
-    currentConversationId = null;
+
+    currentConversationId =
+        null;
+
 
     clearMessages();
+
 
     const settings =
         document.getElementById(
             "novaSettingsPanel"
         );
+
 
     if (settings) {
         settings.remove();
@@ -2001,7 +3005,7 @@ async function logout() {
 
 
 /* =========================================
-   SETTINGS BUTTON DETECTION
+   SETTINGS BUTTON
 ========================================= */
 
 document.addEventListener(
@@ -2009,16 +3013,24 @@ document.addEventListener(
     event => {
 
         const text =
-            event.target?.textContent
+            event.target
+                ?.textContent
                 ?.trim()
                 ?.toLowerCase();
 
-        if (!text) return;
+
+        if (!text) {
+            return;
+        }
+
 
         if (
             text === "settings" ||
-            text.includes("⚙settings")
+            text.includes(
+                "⚙settings"
+            )
         ) {
+
             openSettings();
         }
     }
@@ -2036,15 +3048,21 @@ if (newChatBtn) {
         async () => {
 
             if (!currentUser) {
+
                 showAuthScreen();
+
                 return;
             }
 
+
             await createConversation();
+
 
             clearMessages();
 
+
             closeMobileSidebar();
+
 
             messageInput?.focus();
         }
@@ -2084,6 +3102,7 @@ if (messageInput) {
 
                 sendMessage();
             }
+
         }
     );
 
@@ -2094,6 +3113,7 @@ if (messageInput) {
 
             messageInput.style.height =
                 "auto";
+
 
             messageInput.style.height =
                 Math.min(
@@ -2109,27 +3129,36 @@ if (messageInput) {
    STARTER CARDS
 ========================================= */
 
-starterCards.forEach(card => {
+starterCards.forEach(
+    card => {
 
-    card.addEventListener(
-        "click",
-        () => {
+        card.addEventListener(
+            "click",
+            () => {
 
-            const prompt =
-                card.dataset.prompt ||
-                card.querySelector("p")?.textContent ||
-                card.querySelector("span")?.textContent ||
-                "";
+                const prompt =
+                    card.dataset.prompt ||
+                    card.querySelector("p")
+                        ?.textContent ||
+                    card.querySelector("span")
+                        ?.textContent ||
+                    "";
 
-            if (!prompt) return;
 
-            messageInput.value =
-                prompt;
+                if (!prompt) {
+                    return;
+                }
 
-            sendMessage();
-        }
-    );
-});
+
+                messageInput.value =
+                    prompt;
+
+
+                sendMessage();
+            }
+        );
+    }
+);
 
 
 /* =========================================
@@ -2139,11 +3168,18 @@ starterCards.forEach(card => {
 function openMobileSidebar() {
 
     if (sidebar) {
-        sidebar.classList.add("open");
+
+        sidebar.classList.add(
+            "open"
+        );
     }
 
+
     if (sidebarOverlay) {
-        sidebarOverlay.classList.add("active");
+
+        sidebarOverlay.classList.add(
+            "active"
+        );
     }
 }
 
@@ -2151,11 +3187,18 @@ function openMobileSidebar() {
 function closeMobileSidebar() {
 
     if (sidebar) {
-        sidebar.classList.remove("open");
+
+        sidebar.classList.remove(
+            "open"
+        );
     }
 
+
     if (sidebarOverlay) {
-        sidebarOverlay.classList.remove("active");
+
+        sidebarOverlay.classList.remove(
+            "active"
+        );
     }
 }
 
@@ -2184,7 +3227,10 @@ if (sidebarOverlay) {
 
 function scrollToBottom() {
 
-    if (!messagesContainer) return;
+    if (!messagesContainer) {
+        return;
+    }
+
 
     messagesContainer.scrollTop =
         messagesContainer.scrollHeight;
@@ -2195,14 +3241,31 @@ function scrollToBottom() {
    HTML ESCAPE
 ========================================= */
 
-function escapeHtml(value) {
+function escapeHtml(
+    value
+) {
 
     return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 }
 
 
@@ -2217,15 +3280,23 @@ function initializeNOVA() {
         currentUser?.email
     );
 
+
     renderConversationList();
 
-    if (currentConversationId) {
+
+    if (
+        currentConversationId
+    ) {
+
         loadConversation(
             currentConversationId
         );
+
     } else {
+
         clearMessages();
     }
+
 
     messageInput?.focus();
 }
