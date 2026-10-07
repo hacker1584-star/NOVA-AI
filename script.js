@@ -1,101 +1,127 @@
 /* =========================================
-   NOVA AI — FRONTEND + SUPABASE
-   Stable Cloud Version
-========================================= */
+   NOVA AI — V3 FRONTEND
+   ========================================= */
 
 
 /* =========================================
    DOM
 ========================================= */
 
-const messageInput = document.getElementById("messageInput");
-const sendBtn = document.getElementById("sendBtn");
-const messagesContainer = document.getElementById("messages");
-const welcomeScreen = document.getElementById("welcomeScreen");
+const messageInput =
+    document.getElementById("messageInput");
 
-const newChatBtn = document.getElementById("newChatBtn");
-const conversationList = document.getElementById("conversationList");
+const sendBtn =
+    document.getElementById("sendBtn");
 
-const menuBtn = document.getElementById("menuBtn");
-const sidebar = document.getElementById("sidebar");
-const sidebarOverlay = document.getElementById("sidebarOverlay");
+const messagesContainer =
+    document.getElementById("messages");
 
-const themeToggle = document.getElementById("themeToggle");
-const starterCards = document.querySelectorAll(".starter-card");
+const welcomeScreen =
+    document.getElementById("welcomeScreen");
+
+const chatContainer =
+    document.getElementById("chatContainer");
+
+const newChatBtn =
+    document.getElementById("newChatBtn");
+
+const conversationList =
+    document.getElementById("conversationList");
+
+const emptyConversations =
+    document.getElementById("emptyConversations");
+
+const menuBtn =
+    document.getElementById("menuBtn");
+
+const sidebar =
+    document.getElementById("sidebar");
+
+const sidebarOverlay =
+    document.getElementById("sidebarOverlay");
+
+const themeToggle =
+    document.getElementById("themeToggle");
+
+const starterCards =
+    document.querySelectorAll(".starter-card");
+
+const settingsBtn =
+    document.getElementById("settingsBtn");
+
+const helpBtn =
+    document.getElementById("helpBtn");
+
+const logoutBtn =
+    document.getElementById("logoutBtn");
+
+const modalOverlay =
+    document.getElementById("modalOverlay");
+
+const modalClose =
+    document.getElementById("modalClose");
+
+const modalContent =
+    document.getElementById("modalContent");
 
 
 /* =========================================
-   SUPABASE
+   AUTH DOM
+========================================= */
+
+const authScreen =
+    document.getElementById("authScreen");
+
+const authForm =
+    document.getElementById("authForm");
+
+const authEmail =
+    document.getElementById("authEmail");
+
+const authPassword =
+    document.getElementById("authPassword");
+
+const authName =
+    document.getElementById("authName");
+
+const authNameField =
+    document.getElementById("authNameField");
+
+const authSubmit =
+    document.getElementById("authSubmit");
+
+const authSwitch =
+    document.getElementById("authSwitch");
+
+const authMessage =
+    document.getElementById("authMessage");
+
+
+/* =========================================
+   STATE
 ========================================= */
 
 let supabaseClient = null;
-let currentUser = null;
+
 let supabaseReady = false;
 
-
-/* =========================================
-   APP STATE
-========================================= */
+let currentUser = null;
 
 let conversations = [];
+
 let currentConversationId = null;
 
 let novaMemories = [];
 
-let isSending = false;
+let currentConversationMessages = [];
+
+let authMode = "login";
+
+let isGenerating = false;
 
 
 /* =========================================
-   THEME
-========================================= */
-
-function loadTheme() {
-
-    const savedTheme =
-        localStorage.getItem("nova_theme");
-
-    if (savedTheme === "light") {
-        document.body.classList.add("light-theme");
-    } else {
-        document.body.classList.remove("light-theme");
-    }
-}
-
-
-function toggleTheme() {
-
-    document.body.classList.toggle(
-        "light-theme"
-    );
-
-    const theme =
-        document.body.classList.contains(
-            "light-theme"
-        )
-            ? "light"
-            : "dark";
-
-    localStorage.setItem(
-        "nova_theme",
-        theme
-    );
-}
-
-
-loadTheme();
-
-
-if (themeToggle) {
-
-    themeToggle.addEventListener(
-        "click",
-        toggleTheme
-    );
-}
-
-
-/* =========================================
-   SUPABASE CONFIG
+   SUPABASE
 ========================================= */
 
 async function initializeSupabase() {
@@ -103,44 +129,31 @@ async function initializeSupabase() {
     try {
 
         const response =
-            await fetch("/api/config", {
-                method: "GET",
-                cache: "no-store"
-            });
-
+            await fetch("/api/config");
 
         if (!response.ok) {
-
             throw new Error(
                 "Could not load Supabase configuration."
             );
         }
 
-
         const config =
             await response.json();
-
 
         if (
             !config.supabaseUrl ||
             !config.supabasePublishableKey
         ) {
-
             throw new Error(
                 "Supabase configuration is missing."
             );
         }
 
-
-        if (
-            typeof supabase === "undefined"
-        ) {
-
+        if (typeof supabase === "undefined") {
             throw new Error(
                 "Supabase library did not load."
             );
         }
-
 
         supabaseClient =
             supabase.createClient(
@@ -148,9 +161,7 @@ async function initializeSupabase() {
                 config.supabasePublishableKey
             );
 
-
         supabaseReady = true;
-
 
         console.log(
             "NOVA: Supabase connected."
@@ -163,20 +174,14 @@ async function initializeSupabase() {
             await supabaseClient.auth.getSession();
 
 
-        if (
-            session &&
-            session.user
-        ) {
+        if (session?.user) {
 
             currentUser =
                 session.user;
 
-
             await loadUserData();
 
-
             hideAuthScreen();
-
 
             initializeNOVA();
 
@@ -196,20 +201,14 @@ async function initializeSupabase() {
                 );
 
 
-                if (
-                    session &&
-                    session.user
-                ) {
+                if (session?.user) {
 
                     currentUser =
                         session.user;
 
-
                     await loadUserData();
 
-
                     hideAuthScreen();
-
 
                     initializeNOVA();
 
@@ -223,8 +222,10 @@ async function initializeSupabase() {
 
                     currentConversationId = null;
 
+                    currentConversationMessages = [];
 
                     showAuthScreen();
+
                 }
 
             }
@@ -237,321 +238,167 @@ async function initializeSupabase() {
             error
         );
 
-
         showConfigError(
             error.message
         );
+
+    }
+
+}
+
+
+/* =========================================
+   AUTH SCREEN
+========================================= */
+
+function showAuthScreen() {
+
+    if (!authScreen) return;
+
+    authScreen.style.display = "flex";
+}
+
+function hideAuthScreen() {
+
+    if (!authScreen) return;
+
+    authScreen.style.display = "none";
+}
+
+function setAuthMessage(message) {
+
+    if (authMessage) {
+        authMessage.textContent =
+            message || "";
     }
 }
 
 
 /* =========================================
-   AUTH UI
+   AUTH MODE
 ========================================= */
 
-let authScreen = null;
+function updateAuthMode() {
 
-
-function createAuthScreen() {
-
-    if (authScreen) {
+    if (!authNameField ||
+        !authSwitch ||
+        !authSubmit) {
         return;
     }
 
 
-    authScreen =
-        document.createElement("div");
+    if (authMode === "signup") {
 
-
-    authScreen.id =
-        "novaAuthScreen";
-
-
-    authScreen.innerHTML = `
-        <div class="nova-auth-box">
-
-            <div class="nova-auth-logo">
-                ✦
-            </div>
-
-            <h1>NOVA<span>AI</span></h1>
-
-            <p class="nova-auth-subtitle">
-                Your AI workspace
-            </p>
-
-            <div class="nova-auth-tabs">
-
-                <button
-                    id="novaLoginTab"
-                    class="nova-auth-tab active"
-                >
-                    Login
-                </button>
-
-                <button
-                    id="novaSignupTab"
-                    class="nova-auth-tab"
-                >
-                    Sign up
-                </button>
-
-            </div>
-
-
-            <form id="novaAuthForm">
-
-                <input
-                    id="novaAuthEmail"
-                    type="email"
-                    placeholder="Email address"
-                    autocomplete="email"
-                    required
-                >
-
-                <input
-                    id="novaAuthPassword"
-                    type="password"
-                    placeholder="Password"
-                    autocomplete="current-password"
-                    required
-                >
-
-                <input
-                    id="novaAuthName"
-                    type="text"
-                    placeholder="Your name"
-                    autocomplete="name"
-                    style="display:none;"
-                >
-
-                <button
-                    id="novaAuthSubmit"
-                    type="submit"
-                >
-                    Login
-                </button>
-
-            </form>
-
-
-            <p
-                id="novaAuthMessage"
-                class="nova-auth-message"
-            ></p>
-
-
-            <p class="nova-auth-footer">
-                By continuing, you agree to use NOVA responsibly.
-            </p>
-
-        </div>
-    `;
-
-
-    document.body.appendChild(
-        authScreen
-    );
-
-
-    addAuthStyles();
-
-
-    const loginTab =
-        document.getElementById(
-            "novaLoginTab"
+        authNameField.classList.add(
+            "visible"
         );
 
-    const signupTab =
-        document.getElementById(
-            "novaSignupTab"
+        authSubmit.textContent =
+            "Create account";
+
+        authSwitch.textContent =
+            "Already have an account? Sign in";
+
+    } else {
+
+        authNameField.classList.remove(
+            "visible"
         );
 
-    const form =
-        document.getElementById(
-            "novaAuthForm"
-        );
+        authSubmit.textContent =
+            "Continue";
 
-    const nameInput =
-        document.getElementById(
-            "novaAuthName"
-        );
+        authSwitch.textContent =
+            "Create an account";
 
-    const submitButton =
-        document.getElementById(
-            "novaAuthSubmit"
-        );
+    }
+
+    setAuthMessage("");
+}
 
 
-    let authMode = "login";
+if (authSwitch) {
 
-
-    loginTab.addEventListener(
+    authSwitch.addEventListener(
         "click",
         () => {
 
-            authMode = "login";
+            authMode =
+                authMode === "login"
+                    ? "signup"
+                    : "login";
 
-            loginTab.classList.add(
-                "active"
-            );
-
-            signupTab.classList.remove(
-                "active"
-            );
-
-            nameInput.style.display =
-                "none";
-
-            nameInput.required =
-                false;
-
-            submitButton.textContent =
-                "Login";
-
-            clearAuthMessage();
+            updateAuthMode();
 
         }
     );
 
-
-    signupTab.addEventListener(
-        "click",
-        () => {
-
-            authMode = "signup";
-
-            signupTab.classList.add(
-                "active"
-            );
-
-            loginTab.classList.remove(
-                "active"
-            );
-
-            nameInput.style.display =
-                "block";
-
-            nameInput.required =
-                true;
-
-            submitButton.textContent =
-                "Create account";
-
-            clearAuthMessage();
-
-        }
-    );
+}
 
 
-    form.addEventListener(
+if (authForm) {
+
+    authForm.addEventListener(
         "submit",
-        async event => {
+        async (event) => {
 
             event.preventDefault();
 
+            if (!supabaseReady) {
+                setAuthMessage(
+                    "NOVA is still connecting..."
+                );
+
+                return;
+            }
 
             const email =
-                document
-                    .getElementById(
-                        "novaAuthEmail"
-                    )
-                    .value
-                    .trim();
-
+                authEmail.value.trim();
 
             const password =
-                document
-                    .getElementById(
-                        "novaAuthPassword"
-                    )
-                    .value;
-
+                authPassword.value;
 
             const name =
-                nameInput.value.trim();
+                authName.value.trim();
 
 
-            if (
-                !email ||
-                !password
-            ) {
-
-                showAuthMessage(
-                    "Enter your email and password.",
-                    "error"
+            if (!email || !password) {
+                setAuthMessage(
+                    "Enter your email and password."
                 );
 
                 return;
             }
 
 
-            if (
-                password.length < 6
-            ) {
+            authSubmit.disabled = true;
 
-                showAuthMessage(
-                    "Password must be at least 6 characters.",
-                    "error"
-                );
-
-                return;
-            }
-
-
-            submitButton.disabled =
-                true;
-
-
-            submitButton.textContent =
-                authMode === "login"
-                    ? "Logging in..."
-                    : "Creating account...";
-
-
-            clearAuthMessage();
+            setAuthMessage(
+                authMode === "signup"
+                    ? "Creating your account..."
+                    : "Signing in..."
+            );
 
 
             try {
 
-                if (
-                    authMode === "login"
-                ) {
-
-                    const {
-                        error
-                    } =
-                        await supabaseClient
-                            .auth
-                            .signInWithPassword({
-                                email,
-                                password
-                            });
-
-
-                    if (error) {
-                        throw error;
-                    }
-
-
-                    showAuthMessage(
-                        "Login successful.",
-                        "success"
-                    );
-
-
-                } else {
+                if (authMode === "signup") {
 
                     const {
                         data,
                         error
                     } =
-                        await supabaseClient
-                            .auth
-                            .signUp({
-                                email,
-                                password
-                            });
+                        await supabaseClient.auth.signUp({
+                            email,
+                            password,
+
+                            options: {
+                                data: {
+                                    display_name:
+                                        name || "NOVA User"
+                                }
+                            }
+                        });
 
 
                     if (error) {
@@ -559,30 +406,35 @@ function createAuthScreen() {
                     }
 
 
-                    if (data.user) {
-
-                        await createOrUpdateProfile(
-                            data.user,
-                            name ||
-                            email.split("@")[0]
-                        );
-                    }
-
-
                     if (!data.session) {
 
-                        showAuthMessage(
-                            "Account created. Check your email to confirm your account, then log in.",
-                            "success"
+                        setAuthMessage(
+                            "Account created. Check your email to confirm your account."
                         );
 
                     } else {
 
-                        showAuthMessage(
-                            "Account created successfully.",
-                            "success"
+                        setAuthMessage(
+                            "Account created."
                         );
+
                     }
+
+                } else {
+
+                    const {
+                        error
+                    } =
+                        await supabaseClient.auth.signInWithPassword({
+                            email,
+                            password
+                        });
+
+
+                    if (error) {
+                        throw error;
+                    }
+
                 }
 
             } catch (error) {
@@ -592,406 +444,33 @@ function createAuthScreen() {
                     error
                 );
 
-
-                showAuthMessage(
-                    getFriendlyAuthError(
-                        error
-                    ),
-                    "error"
+                setAuthMessage(
+                    error.message ||
+                    "Authentication failed."
                 );
 
             } finally {
 
-                submitButton.disabled =
+                authSubmit.disabled =
                     false;
 
-
-                submitButton.textContent =
-                    authMode === "login"
-                        ? "Login"
-                        : "Create account";
             }
 
         }
     );
+
 }
 
 
 /* =========================================
-   AUTH STYLES
-========================================= */
-
-function addAuthStyles() {
-
-    if (
-        document.getElementById(
-            "novaAuthStyles"
-        )
-    ) {
-        return;
-    }
-
-
-    const style =
-        document.createElement(
-            "style"
-        );
-
-
-    style.id =
-        "novaAuthStyles";
-
-
-    style.textContent = `
-        #novaAuthScreen {
-            position: fixed;
-            inset: 0;
-            z-index: 99999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            background: #050505;
-            color: white;
-            overflow-y: auto;
-        }
-
-        .nova-auth-box {
-            width: 100%;
-            max-width: 420px;
-            padding: 34px 26px;
-            border: 1px solid rgba(255,255,255,.10);
-            border-radius: 22px;
-            background: rgba(15,15,15,.96);
-            box-shadow: 0 25px 80px rgba(0,0,0,.45);
-            text-align: center;
-        }
-
-        .nova-auth-logo {
-            width: 54px;
-            height: 54px;
-            margin: 0 auto 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 16px;
-            background: rgba(255,255,255,.08);
-            font-size: 28px;
-        }
-
-        .nova-auth-box h1 {
-            margin: 0;
-            font-size: 28px;
-            letter-spacing: .5px;
-        }
-
-        .nova-auth-box h1 span {
-            opacity: .55;
-        }
-
-        .nova-auth-subtitle {
-            margin: 8px 0 25px;
-            color: #999;
-            font-size: 14px;
-        }
-
-        .nova-auth-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 18px;
-        }
-
-        .nova-auth-tab {
-            flex: 1;
-            border: 1px solid rgba(255,255,255,.10);
-            background: rgba(255,255,255,.04);
-            color: #aaa;
-            padding: 11px;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-
-        .nova-auth-tab.active {
-            background: rgba(255,255,255,.12);
-            color: white;
-        }
-
-        #novaAuthForm {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        #novaAuthForm input {
-            width: 100%;
-            box-sizing: border-box;
-            border: 1px solid rgba(255,255,255,.10);
-            background: rgba(255,255,255,.05);
-            color: white;
-            padding: 14px;
-            border-radius: 10px;
-            outline: none;
-            font-size: 15px;
-        }
-
-        #novaAuthForm input:focus {
-            border-color: rgba(255,255,255,.30);
-        }
-
-        #novaAuthSubmit {
-            border: 0;
-            background: white;
-            color: black;
-            padding: 14px;
-            border-radius: 10px;
-            font-weight: 700;
-            cursor: pointer;
-            margin-top: 4px;
-        }
-
-        #novaAuthSubmit:disabled {
-            opacity: .55;
-            cursor: wait;
-        }
-
-        .nova-auth-message {
-            min-height: 22px;
-            margin: 15px 0 0;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        .nova-auth-message.error {
-            color: #ff8585;
-        }
-
-        .nova-auth-message.success {
-            color: #8de6a4;
-        }
-
-        .nova-auth-footer {
-            margin: 22px 0 0;
-            color: #666;
-            font-size: 11px;
-            line-height: 1.5;
-        }
-
-        @media (max-width: 480px) {
-
-            .nova-auth-box {
-                padding: 28px 20px;
-            }
-
-        }
-    `;
-
-
-    document.head.appendChild(
-        style
-    );
-}
-
-
-/* =========================================
-   AUTH SCREEN FUNCTIONS
-========================================= */
-
-function showAuthScreen() {
-
-    createAuthScreen();
-
-    authScreen.style.display =
-        "flex";
-
-    document.body.style.overflow =
-        "hidden";
-}
-
-
-function hideAuthScreen() {
-
-    createAuthScreen();
-
-    authScreen.style.display =
-        "none";
-
-    document.body.style.overflow =
-        "";
-}
-
-
-function showAuthMessage(
-    message,
-    type
-) {
-
-    const element =
-        document.getElementById(
-            "novaAuthMessage"
-        );
-
-
-    if (!element) return;
-
-
-    element.textContent =
-        message;
-
-
-    element.className =
-        `nova-auth-message ${type || ""}`;
-}
-
-
-function clearAuthMessage() {
-
-    const element =
-        document.getElementById(
-            "novaAuthMessage"
-        );
-
-
-    if (!element) return;
-
-
-    element.textContent =
-        "";
-
-
-    element.className =
-        "nova-auth-message";
-}
-
-
-function showConfigError(
-    message
-) {
-
-    showAuthScreen();
-
-
-    showAuthMessage(
-        "NOVA could not connect to its account system. Check the Vercel deployment and /api/config.",
-        "error"
-    );
-
-
-    console.error(
-        message
-    );
-}
-
-
-function getFriendlyAuthError(
-    error
-) {
-
-    const message =
-        error?.message ||
-        "Something went wrong.";
-
-
-    const lower =
-        message.toLowerCase();
-
-
-    if (
-        lower.includes(
-            "invalid login credentials"
-        )
-    ) {
-
-        return "Incorrect email or password.";
-    }
-
-
-    if (
-        lower.includes(
-            "user already registered"
-        )
-    ) {
-
-        return "An account with this email already exists. Try logging in.";
-    }
-
-
-    if (
-        lower.includes(
-            "email not confirmed"
-        )
-    ) {
-
-        return "Please confirm your email before logging in.";
-    }
-
-
-    if (
-        lower.includes(
-            "password should be at least"
-        )
-    ) {
-
-        return "Your password must be at least 6 characters.";
-    }
-
-
-    return message;
-}
-
-
-/* =========================================
-   PROFILE
-========================================= */
-
-async function createOrUpdateProfile(
-    user,
-    displayName
-) {
-
-    if (
-        !supabaseClient ||
-        !user
-    ) {
-        return;
-    }
-
-
-    const {
-        error
-    } =
-        await supabaseClient
-            .from("profiles")
-            .upsert(
-                {
-                    id: user.id,
-                    display_name:
-                        displayName || null
-                },
-                {
-                    onConflict: "id"
-                }
-            );
-
-
-    if (error) {
-
-        console.error(
-            "Profile error:",
-            error
-        );
-    }
-}
-
-
-/* =========================================
-   LOAD USER DATA
+   USER DATA
 ========================================= */
 
 async function loadUserData() {
 
     if (
-        !currentUser ||
-        !supabaseClient
+        !supabaseClient ||
+        !currentUser
     ) {
         return;
     }
@@ -999,20 +478,8 @@ async function loadUserData() {
 
     try {
 
-        await createOrUpdateProfile(
-            currentUser,
-            currentUser
-                .user_metadata
-                ?.display_name ||
-            currentUser.email
-                ?.split("@")[0] ||
-            "NOVA User"
-        );
+        await ensureProfile();
 
-
-        /* --------------------------------
-           LOAD CONVERSATIONS
-        -------------------------------- */
 
         const {
             data: conversationData,
@@ -1038,84 +505,9 @@ async function loadUserData() {
         }
 
 
-        conversations = [];
+        conversations =
+            conversationData || [];
 
-
-        for (
-            const conversation
-            of conversationData || []
-        ) {
-
-            const {
-                data: messageData,
-                error: messageError
-            } =
-                await supabaseClient
-                    .from("messages")
-                    .select("*")
-                    .eq(
-                        "conversation_id",
-                        conversation.id
-                    )
-                    .eq(
-                        "user_id",
-                        currentUser.id
-                    )
-                    .order(
-                        "created_at",
-                        {
-                            ascending: true
-                        }
-                    );
-
-
-            if (messageError) {
-
-                console.error(
-                    "Message loading error:",
-                    messageError
-                );
-
-                continue;
-            }
-
-
-            conversations.push({
-
-                id:
-                    conversation.id,
-
-                title:
-                    conversation.title ||
-                    "New chat",
-
-                createdAt:
-                    conversation.created_at,
-
-                updatedAt:
-                    conversation.updated_at,
-
-                messages:
-                    (messageData || [])
-                        .map(message => ({
-
-                            role:
-                                message.role ===
-                                "assistant"
-                                    ? "ai"
-                                    : message.role,
-
-                            content:
-                                message.content
-
-                        }))
-            });
-        }
-
-
-        /* --------------------------------
-           LOAD MEMORIES
-        -------------------------------- */
 
         const {
             data: memoryData,
@@ -1131,7 +523,7 @@ async function loadUserData() {
                 .order(
                     "created_at",
                     {
-                        ascending: false
+                        ascending: true
                     }
                 );
 
@@ -1142,66 +534,1445 @@ async function loadUserData() {
 
 
         novaMemories =
-            (memoryData || [])
-                .map(memory => ({
-
-                    id:
-                        memory.id,
-
-                    content:
-                        memory.content,
-
-                    createdAt:
-                        memory.created_at,
-
-                    updatedAt:
-                        memory.updated_at
-
-                }));
+            memoryData || [];
 
 
-        /* --------------------------------
-           SELECT MOST RECENT CHAT
-        -------------------------------- */
+        /*
+         * IMPORTANT:
+         *
+         * Do NOT automatically open the newest
+         * conversation when NOVA starts.
+         *
+         * NOVA always starts as a clean workspace.
+         */
 
-        if (
-            conversations.length > 0
-        ) {
+        currentConversationId =
+            null;
 
-            currentConversationId =
-                conversations[0].id;
-
-        } else {
-
-            currentConversationId =
-                null;
-        }
+        currentConversationMessages =
+            [];
 
 
         renderConversationList();
 
-
-        if (
-            currentConversationId
-        ) {
-
-            loadConversation(
-                currentConversationId
-            );
-
-        } else {
-
-            clearMessages();
-        }
-
+        clearMessages();
 
     } catch (error) {
 
         console.error(
-            "Could not load NOVA user data:",
+            "Could not load user data:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================
+   PROFILE
+========================================= */
+
+async function ensureProfile() {
+
+    if (!currentUser) return;
+
+
+    const displayName =
+        currentUser.user_metadata?.display_name ||
+        currentUser.email?.split("@")[0] ||
+        "NOVA User";
+
+
+    const {
+        error
+    } =
+        await supabaseClient
+            .from("profiles")
+            .upsert(
+                {
+                    id:
+                        currentUser.id,
+
+                    display_name:
+                        displayName
+                },
+                {
+                    onConflict: "id"
+                }
+            );
+
+
+    if (error) {
+
+        console.warn(
+            "Profile update:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================
+   INITIALIZE NOVA
+========================================= */
+
+function initializeNOVA() {
+
+    loadTheme();
+
+    renderConversationList();
+
+    clearMessages();
+
+    autoResizeTextarea();
+
+    messageInput?.focus();
+
+}
+
+
+/* =========================================
+   CONVERSATION LIST
+========================================= */
+
+function renderConversationList() {
+
+    if (!conversationList) return;
+
+
+    conversationList.innerHTML = "";
+
+
+    if (!conversations.length) {
+
+        if (emptyConversations) {
+            emptyConversations.style.display =
+                "block";
+        }
+
+        return;
+
+    }
+
+
+    if (emptyConversations) {
+        emptyConversations.style.display =
+            "none";
+    }
+
+
+    conversations.forEach(
+        (conversation) => {
+
+            const button =
+                document.createElement(
+                    "button"
+                );
+
+            button.className =
+                "conversation-item";
+
+
+            if (
+                conversation.id ===
+                currentConversationId
+            ) {
+                button.classList.add(
+                    "active"
+                );
+            }
+
+
+            button.textContent =
+                conversation.title ||
+                "New chat";
+
+
+            button.title =
+                conversation.title ||
+                "New chat";
+
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    loadConversation(
+                        conversation.id
+                    );
+
+                    closeMobileSidebar();
+
+                }
+            );
+
+
+            conversationList.appendChild(
+                button
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================
+   CREATE CONVERSATION
+========================================= */
+
+async function createConversation(
+    firstMessage = ""
+) {
+
+    if (!currentUser) {
+        return null;
+    }
+
+
+    const title =
+        firstMessage
+            ? firstMessage
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 55)
+            : "New chat";
+
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
+            .from("conversations")
+            .insert({
+                user_id:
+                    currentUser.id,
+
+                title:
+                    title || "New chat"
+            })
+            .select()
+            .single();
+
+
+    if (error) {
+        throw error;
+    }
+
+
+    conversations.unshift(data);
+
+    currentConversationId =
+        data.id;
+
+
+    renderConversationList();
+
+
+    return data;
+
+}
+
+
+/* =========================================
+   LOAD CONVERSATION
+========================================= */
+
+async function loadConversation(
+    conversationId
+) {
+
+    if (!currentUser) return;
+
+
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from("messages")
+                .select("*")
+                .eq(
+                    "conversation_id",
+                    conversationId
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: true
+                    }
+                );
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        currentConversationId =
+            conversationId;
+
+
+        currentConversationMessages =
+            data || [];
+
+
+        clearMessages();
+
+
+        currentConversationMessages.forEach(
+            (message) => {
+
+                addMessageToScreen(
+                    message.role,
+                    message.content,
+                    false
+                );
+
+            }
+        );
+
+
+        renderConversationList();
+
+        scrollToBottom();
+
+    } catch (error) {
+
+        console.error(
+            "Could not load conversation:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================
+   SAVE MESSAGE
+========================================= */
+
+async function saveMessageToSupabase(
+    conversationId,
+    role,
+    content
+) {
+
+    if (
+        !supabaseClient ||
+        !currentUser ||
+        !conversationId
+    ) {
+        return null;
+    }
+
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
+            .from("messages")
+            .insert({
+                conversation_id:
+                    conversationId,
+
+                user_id:
+                    currentUser.id,
+
+                role:
+                    role,
+
+                content:
+                    content
+            })
+            .select()
+            .single();
+
+
+    if (error) {
+
+        console.error(
+            "Could not save message:",
+            error
+        );
+
+        return null;
+    }
+
+
+    return data;
+
+}
+
+
+/* =========================================
+   UPDATE CONVERSATION
+========================================= */
+
+async function updateConversationTimestamp(
+    conversationId
+) {
+
+    if (!conversationId) return;
+
+
+    const {
+        error
+    } =
+        await supabaseClient
+            .from("conversations")
+            .update({
+                updated_at:
+                    new Date().toISOString()
+            })
+            .eq(
+                "id",
+                conversationId
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            );
+
+
+    if (error) {
+        console.warn(
+            "Conversation timestamp:",
             error
         );
     }
+
+
+    const index =
+        conversations.findIndex(
+            (item) =>
+                item.id ===
+                conversationId
+        );
+
+
+    if (index !== -1) {
+
+        conversations[index].updated_at =
+            new Date().toISOString();
+
+        conversations.sort(
+            (a, b) =>
+                new Date(b.updated_at) -
+                new Date(a.updated_at)
+        );
+
+    }
+
+
+    renderConversationList();
+
+}
+
+
+/* =========================================
+   SEND MESSAGE
+========================================= */
+
+async function sendMessage(
+    forcedText = null
+) {
+
+    if (isGenerating) {
+        return;
+    }
+
+
+    const text =
+        forcedText !== null
+            ? forcedText.trim()
+            : messageInput.value.trim();
+
+
+    if (!text) {
+        return;
+    }
+
+
+    if (!currentUser) {
+
+        showAuthScreen();
+
+        return;
+    }
+
+
+    isGenerating = true;
+
+    sendBtn.disabled = true;
+
+
+    if (messageInput) {
+        messageInput.value = "";
+
+        autoResizeTextarea();
+    }
+
+
+    hideWelcome();
+
+
+    /*
+     * Create a conversation only when
+     * the user actually sends something.
+     */
+
+    try {
+
+        if (!currentConversationId) {
+
+            const conversation =
+                await createConversation(
+                    text
+                );
+
+            currentConversationId =
+                conversation.id;
+
+        }
+
+
+        currentConversationMessages.push({
+            role: "user",
+            content: text
+        });
+
+
+        addMessageToScreen(
+            "user",
+            text
+        );
+
+
+        await saveMessageToSupabase(
+            currentConversationId,
+            "user",
+            text
+        );
+
+
+        await updateConversationTimestamp(
+            currentConversationId
+        );
+
+
+        showLoading();
+
+
+        const aiText =
+            await generateAIResponse(
+                currentConversationMessages
+            );
+
+
+        hideLoading();
+
+
+        currentConversationMessages.push({
+            role: "ai",
+            content: aiText
+        });
+
+
+        addMessageToScreen(
+            "ai",
+            aiText
+        );
+
+
+        await saveMessageToSupabase(
+            currentConversationId,
+            "ai",
+            aiText
+        );
+
+
+        await updateConversationTimestamp(
+            currentConversationId
+        );
+
+
+        detectMemory(text);
+
+
+    } catch (error) {
+
+        hideLoading();
+
+        console.error(
+            "NOVA message error:",
+            error
+        );
+
+
+        addMessageToScreen(
+            "ai",
+            "I couldn't generate a response right now. Please try again."
+        );
+
+    } finally {
+
+        isGenerating = false;
+
+        sendBtn.disabled = false;
+
+        messageInput?.focus();
+
+    }
+
+}
+
+
+/* =========================================
+   AI RESPONSE
+========================================= */
+
+async function generateAIResponse(
+    conversationMessages
+) {
+
+    const messagesForAI =
+        conversationMessages.map(
+            (message) => ({
+                role:
+                    message.role === "ai"
+                        ? "assistant"
+                        : "user",
+
+                content:
+                    message.content
+            })
+        );
+
+
+    const memoryContext =
+        getMemoryContext();
+
+
+    if (memoryContext) {
+
+        messagesForAI.unshift({
+            role: "system",
+
+            content:
+                `Relevant memory about the user:\n${memoryContext}`
+        });
+
+    }
+
+
+    const response =
+        await fetch(
+            "/api/chat",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body:
+                    JSON.stringify({
+                        messages:
+                            messagesForAI
+                    })
+            }
+        );
+
+
+    const data =
+        await response.json();
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.error ||
+            "AI request failed."
+        );
+
+    }
+
+
+    /*
+     * Support the backend response format
+     * and older formats.
+     */
+
+    const aiText =
+        data.answer ||
+        data.reply ||
+        data.message ||
+        data.content ||
+        "I couldn't generate a response.";
+
+
+    return aiText;
+
+}
+
+
+/* =========================================
+   MESSAGE UI
+========================================= */
+
+function addMessageToScreen(
+    role,
+    content,
+    scroll = true
+) {
+
+    if (!messagesContainer) {
+        return;
+    }
+
+
+    const wrapper =
+        document.createElement(
+            "div"
+        );
+
+
+    wrapper.className =
+        `message ${role}`;
+
+
+    const bubble =
+        document.createElement(
+            "div"
+        );
+
+
+    bubble.className =
+        "message-content";
+
+
+    const roleLabel =
+        document.createElement(
+            "span"
+        );
+
+
+    roleLabel.className =
+        "message-role";
+
+
+    roleLabel.textContent =
+        role === "user"
+            ? "You"
+            : "NOVA";
+
+
+    const text =
+        document.createElement(
+            "div"
+        );
+
+
+    text.className =
+        "message-text";
+
+
+    text.textContent =
+        content;
+
+
+    bubble.appendChild(
+        roleLabel
+    );
+
+    bubble.appendChild(
+        text
+    );
+
+
+    if (role === "ai") {
+
+        const actions =
+            document.createElement(
+                "div"
+            );
+
+
+        actions.className =
+            "message-actions";
+
+
+        const copyButton =
+            document.createElement(
+                "button"
+            );
+
+
+        copyButton.className =
+            "message-action";
+
+        copyButton.textContent =
+            "Copy";
+
+
+        copyButton.addEventListener(
+            "click",
+            async () => {
+
+                try {
+
+                    await navigator.clipboard.writeText(
+                        content
+                    );
+
+                    copyButton.textContent =
+                        "Copied";
+
+                    setTimeout(
+                        () => {
+                            copyButton.textContent =
+                                "Copy";
+                        },
+                        1200
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        "Copy failed:",
+                        error
+                    );
+
+                }
+
+            }
+        );
+
+
+        const regenerateButton =
+            document.createElement(
+                "button"
+            );
+
+
+        regenerateButton.className =
+            "message-action";
+
+        regenerateButton.textContent =
+            "↻ Regenerate";
+
+
+        regenerateButton.addEventListener(
+            "click",
+            () => {
+
+                regenerateLastResponse();
+
+            }
+        );
+
+
+        actions.appendChild(
+            copyButton
+        );
+
+        actions.appendChild(
+            regenerateButton
+        );
+
+
+        bubble.appendChild(
+            actions
+        );
+
+    }
+
+
+    wrapper.appendChild(
+        bubble
+    );
+
+
+    messagesContainer.appendChild(
+        wrapper
+    );
+
+
+    if (scroll) {
+        scrollToBottom();
+    }
+
+}
+
+
+/* =========================================
+   REGENERATE RESPONSE
+========================================= */
+
+async function regenerateLastResponse() {
+
+    if (
+        isGenerating ||
+        !currentConversationId ||
+        !currentConversationMessages.length
+    ) {
+        return;
+    }
+
+
+    const lastMessage =
+        currentConversationMessages[
+            currentConversationMessages.length - 1
+        ];
+
+
+    /*
+     * Only regenerate if the latest
+     * message is from NOVA.
+     */
+
+    if (
+        !lastMessage ||
+        lastMessage.role !== "ai"
+    ) {
+        return;
+    }
+
+
+    isGenerating = true;
+
+    sendBtn.disabled = true;
+
+
+    try {
+
+        /*
+         * Remove the old AI message
+         * from local state.
+         */
+
+        currentConversationMessages.pop();
+
+
+        /*
+         * Remove the visible last AI bubble.
+         */
+
+        const aiMessages =
+            messagesContainer.querySelectorAll(
+                ".message.ai"
+            );
+
+
+        if (aiMessages.length) {
+
+            aiMessages[
+                aiMessages.length - 1
+            ].remove();
+
+        }
+
+
+        /*
+         * Remove the previous AI message
+         * from Supabase.
+         */
+
+        await supabaseClient
+            .from("messages")
+            .delete()
+            .eq(
+                "conversation_id",
+                currentConversationId
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            )
+            .eq(
+                "role",
+                "ai"
+            )
+            .order(
+                "created_at",
+                {
+                    ascending: false
+                }
+            )
+            .limit(1);
+
+
+        showLoading();
+
+
+        const aiText =
+            await generateAIResponse(
+                currentConversationMessages
+            );
+
+
+        hideLoading();
+
+
+        currentConversationMessages.push({
+            role: "ai",
+            content: aiText
+        });
+
+
+        addMessageToScreen(
+            "ai",
+            aiText
+        );
+
+
+        await saveMessageToSupabase(
+            currentConversationId,
+            "ai",
+            aiText
+        );
+
+
+        await updateConversationTimestamp(
+            currentConversationId
+        );
+
+
+    } catch (error) {
+
+        hideLoading();
+
+        console.error(
+            "Regeneration error:",
+            error
+        );
+
+
+        addMessageToScreen(
+            "ai",
+            "I couldn't regenerate the response. Please try again."
+        );
+
+    } finally {
+
+        isGenerating = false;
+
+        sendBtn.disabled = false;
+
+    }
+
+}
+
+
+/* =========================================
+   LOADING
+========================================= */
+
+function showLoading() {
+
+    hideLoading();
+
+
+    const loading =
+        document.createElement(
+            "div"
+        );
+
+
+    loading.id =
+        "novaLoading";
+
+    loading.className =
+        "nova-loading";
+
+
+    const dot =
+        document.createElement(
+            "span"
+        );
+
+
+    dot.className =
+        "loading-dot";
+
+
+    const text =
+        document.createElement(
+            "span"
+        );
+
+
+    text.textContent =
+        "NOVA is thinking…";
+
+
+    loading.appendChild(dot);
+
+    loading.appendChild(text);
+
+
+    messagesContainer.appendChild(
+        loading
+    );
+
+
+    scrollToBottom();
+
+}
+
+
+function hideLoading() {
+
+    const loading =
+        document.getElementById(
+            "novaLoading"
+        );
+
+
+    if (loading) {
+        loading.remove();
+    }
+
+}
+
+
+/* =========================================
+   CLEAR CHAT
+========================================= */
+
+function clearMessages() {
+
+    if (messagesContainer) {
+        messagesContainer.innerHTML = "";
+    }
+
+
+    currentConversationMessages = [];
+
+
+    if (welcomeScreen) {
+        welcomeScreen.style.display =
+            "block";
+    }
+
+}
+
+
+/* =========================================
+   NEW CHAT
+========================================= */
+
+if (newChatBtn) {
+
+    newChatBtn.addEventListener(
+        "click",
+        () => {
+
+            if (!currentUser) {
+
+                showAuthScreen();
+
+                return;
+
+            }
+
+
+            /*
+             * New chat does NOT create an empty
+             * database conversation.
+             *
+             * It only creates a clean workspace.
+             */
+
+            currentConversationId =
+                null;
+
+            currentConversationMessages =
+                [];
+
+
+            clearMessages();
+
+            closeMobileSidebar();
+
+            messageInput?.focus();
+
+        }
+    );
+
+}
+
+
+/* =========================================
+   STARTER CARDS
+========================================= */
+
+starterCards.forEach(
+    (card) => {
+
+        card.addEventListener(
+            "click",
+            () => {
+
+                const prompt =
+                    card.dataset.prompt ||
+                    "";
+
+
+                if (prompt) {
+                    sendMessage(prompt);
+                }
+
+            }
+        );
+
+    }
+);
+
+
+/* =========================================
+   HIDE WELCOME
+========================================= */
+
+function hideWelcome() {
+
+    if (welcomeScreen) {
+        welcomeScreen.style.display =
+            "none";
+    }
+
+}
+
+
+/* =========================================
+   SCROLL
+========================================= */
+
+function scrollToBottom() {
+
+    if (!chatContainer) {
+        return;
+    }
+
+
+    requestAnimationFrame(
+        () => {
+
+            chatContainer.scrollTop =
+                chatContainer.scrollHeight;
+
+        }
+    );
+
+}
+
+
+/* =========================================
+   TEXTAREA
+========================================= */
+
+function autoResizeTextarea() {
+
+    if (!messageInput) {
+        return;
+    }
+
+
+    messageInput.style.height =
+        "auto";
+
+
+    messageInput.style.height =
+        Math.min(
+            messageInput.scrollHeight,
+            150
+        ) + "px";
+
+}
+
+
+if (messageInput) {
+
+    messageInput.addEventListener(
+        "input",
+        autoResizeTextarea
+    );
+
+
+    messageInput.addEventListener(
+        "keydown",
+        (event) => {
+
+            if (
+                event.key === "Enter" &&
+                !event.shiftKey
+            ) {
+
+                event.preventDefault();
+
+                sendMessage();
+
+            }
+
+        }
+    );
+
+}
+
+
+if (sendBtn) {
+
+    sendBtn.addEventListener(
+        "click",
+        () => {
+            sendMessage();
+        }
+    );
+
+}
+
+
+/* =========================================
+   MOBILE SIDEBAR
+========================================= */
+
+if (menuBtn) {
+
+    menuBtn.addEventListener(
+        "click",
+        () => {
+
+            sidebar.classList.toggle(
+                "open"
+            );
+
+            sidebarOverlay.classList.toggle(
+                "active"
+            );
+
+        }
+    );
+
+}
+
+
+if (sidebarOverlay) {
+
+    sidebarOverlay.addEventListener(
+        "click",
+        closeMobileSidebar
+    );
+
+}
+
+
+function closeMobileSidebar() {
+
+    sidebar?.classList.remove(
+        "open"
+    );
+
+    sidebarOverlay?.classList.remove(
+        "active"
+    );
+
+}
+
+
+/* =========================================
+   THEME
+========================================= */
+
+function loadTheme() {
+
+    const savedTheme =
+        localStorage.getItem(
+            "nova_theme"
+        );
+
+
+    if (savedTheme === "light") {
+
+        document.body.classList.add(
+            "light-theme"
+        );
+
+        updateThemeIcon(true);
+
+    } else {
+
+        document.body.classList.remove(
+            "light-theme"
+        );
+
+        updateThemeIcon(false);
+
+    }
+
+}
+
+
+function updateThemeIcon(
+    isLight
+) {
+
+    if (!themeToggle) {
+        return;
+    }
+
+
+    themeToggle.textContent =
+        isLight
+            ? "☀"
+            : "☾";
+
+}
+
+
+function toggleTheme() {
+
+    const isLight =
+        document.body.classList.toggle(
+            "light-theme"
+        );
+
+
+    localStorage.setItem(
+        "nova_theme",
+        isLight
+            ? "light"
+            : "dark"
+    );
+
+
+    updateThemeIcon(
+        isLight
+    );
+
+}
+
+
+if (themeToggle) {
+
+    themeToggle.addEventListener(
+        "click",
+        toggleTheme
+    );
+
 }
 
 
@@ -1211,45 +1982,76 @@ async function loadUserData() {
 
 function getMemoryContext() {
 
-    if (
-        !novaMemories.length
-    ) {
+    if (!novaMemories.length) {
         return "";
     }
 
 
-    return `
-The following are memories NOVA has saved about the user.
-Use them only when relevant.
+    return novaMemories
+        .map(
+            memory =>
+                memory.content
+        )
+        .join("\n");
 
-${novaMemories
-    .map(
-        memory =>
-            `- ${memory.content}`
-    )
-    .join("\n")}
-`;
 }
 
 
-async function addMemory(
-    content
-) {
+async function detectMemory(text) {
 
     if (
-        !content ||
-        !currentUser ||
-        !supabaseClient
+        !supabaseClient ||
+        !currentUser
     ) {
         return;
     }
 
 
-    const cleanContent =
-        content.trim();
+    const patterns = [
+
+        /my name is (.+)/i,
+
+        /i live in (.+)/i,
+
+        /i am learning (.+)/i,
+
+        /i'm learning (.+)/i,
+
+        /my project is called (.+)/i,
+
+        /my goal is (.+)/i,
+
+        /i want to become (.+)/i
+
+    ];
 
 
-    if (!cleanContent) {
+    let memoryText = null;
+
+
+    for (
+        const pattern of patterns
+    ) {
+
+        const match =
+            text.match(pattern);
+
+
+        if (match) {
+
+            memoryText =
+                match[0]
+                    .trim()
+                    .slice(0, 250);
+
+            break;
+
+        }
+
+    }
+
+
+    if (!memoryText) {
         return;
     }
 
@@ -1259,8 +2061,7 @@ async function addMemory(
             memory =>
                 memory.content
                     .toLowerCase() ===
-                cleanContent
-                    .toLowerCase()
+                memoryText.toLowerCase()
         );
 
 
@@ -1280,7 +2081,7 @@ async function addMemory(
                     currentUser.id,
 
                 content:
-                    cleanContent
+                    memoryText
             })
             .select()
             .single();
@@ -1288,8 +2089,8 @@ async function addMemory(
 
     if (error) {
 
-        console.error(
-            "Could not save memory:",
+        console.warn(
+            "Memory save failed:",
             error
         );
 
@@ -1298,1942 +2099,214 @@ async function addMemory(
 
 
     if (data) {
-
-        novaMemories.unshift({
-
-            id:
-                data.id,
-
-            content:
-                data.content,
-
-            createdAt:
-                data.created_at,
-
-            updatedAt:
-                data.updated_at
-
-        });
+        novaMemories.push(data);
     }
-}
 
-
-function detectMemory(
-    message
-) {
-
-    const patterns = [
-
-        {
-            regex:
-                /my name is (.+)/i,
-
-            label:
-                "The user's name is"
-        },
-
-        {
-            regex:
-                /i live in (.+)/i,
-
-            label:
-                "The user lives in"
-        },
-
-        {
-            regex:
-                /i am learning (.+)/i,
-
-            label:
-                "The user is learning"
-        },
-
-        {
-            regex:
-                /my project is called (.+)/i,
-
-            label:
-                "The user's project is called"
-        },
-
-        {
-            regex:
-                /i work on (.+)/i,
-
-            label:
-                "The user works on"
-        },
-
-        {
-            regex:
-                /my goal is (.+)/i,
-
-            label:
-                "The user's goal is"
-        },
-
-        {
-            regex:
-                /i want to become (.+)/i,
-
-            label:
-                "The user wants to become"
-        }
-
-    ];
-
-
-    for (
-        const pattern
-        of patterns
-    ) {
-
-        const match =
-            message.match(
-                pattern.regex
-            );
-
-
-        if (
-            match &&
-            match[1]
-        ) {
-
-            const value =
-                match[1]
-                    .trim()
-                    .replace(
-                        /[.!?]+$/,
-                        ""
-                    );
-
-
-            addMemory(
-                `${pattern.label} ${value}.`
-            );
-
-
-            break;
-        }
-    }
 }
 
 
 /* =========================================
-   CONVERSATIONS
+   SETTINGS
 ========================================= */
 
-async function createConversation() {
+if (settingsBtn) {
 
-    if (
-        !currentUser ||
-        !supabaseClient
-    ) {
-        return null;
-    }
+    settingsBtn.addEventListener(
+        "click",
+        () => {
 
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-            .from("conversations")
-            .insert({
-                user_id:
-                    currentUser.id,
-
-                title:
-                    "New chat"
-            })
-            .select()
-            .single();
+            const email =
+                currentUser?.email ||
+                "Not available";
 
 
-    if (error) {
-
-        console.error(
-            "Could not create conversation:",
-            error
-        );
-
-        return null;
-    }
+            const memoryCount =
+                novaMemories.length;
 
 
-    const conversation = {
+            openModal(`
+                <h2>Settings</h2>
 
-        id:
-            data.id,
+                <p>
+                    Manage your NOVA workspace.
+                </p>
 
-        title:
-            data.title,
+                <div class="modal-row">
+                    <span>Account</span>
+                    <strong>${escapeHTML(email)}</strong>
+                </div>
 
-        createdAt:
-            data.created_at,
+                <div class="modal-row">
+                    <span>Conversations</span>
+                    <strong>${conversations.length}</strong>
+                </div>
 
-        updatedAt:
-            data.updated_at,
+                <div class="modal-row">
+                    <span>Memories</span>
+                    <strong>${memoryCount}</strong>
+                </div>
 
-        messages:
-            []
-    };
+                <div class="modal-row">
+                    <span>Theme</span>
+                    <strong>
+                        ${
+                            document.body.classList.contains(
+                                "light-theme"
+                            )
+                            ? "Light"
+                            : "Dark"
+                        }
+                    </strong>
+                </div>
+            `);
 
+            closeMobileSidebar();
 
-    conversations.unshift(
-        conversation
+        }
     );
 
-
-    currentConversationId =
-        conversation.id;
-
-
-    renderConversationList();
-
-
-    return conversation;
-}
-
-
-function getCurrentConversation() {
-
-    return conversations.find(
-        conversation =>
-            conversation.id ===
-            currentConversationId
-    );
-}
-
-
-async function updateConversationTitle(
-    conversation,
-    title
-) {
-
-    if (
-        !conversation ||
-        !currentUser ||
-        !supabaseClient
-    ) {
-        return;
-    }
-
-
-    conversation.title =
-        title;
-
-
-    const {
-        error
-    } =
-        await supabaseClient
-            .from("conversations")
-            .update({
-                title
-            })
-            .eq(
-                "id",
-                conversation.id
-            )
-            .eq(
-                "user_id",
-                currentUser.id
-            );
-
-
-    if (error) {
-
-        console.error(
-            "Could not update conversation:",
-            error
-        );
-    }
-
-
-    renderConversationList();
-}
-
-
-async function touchConversation(
-    conversation
-) {
-
-    if (
-        !conversation ||
-        !currentUser ||
-        !supabaseClient
-    ) {
-        return;
-    }
-
-
-    const now =
-        new Date().toISOString();
-
-
-    conversation.updatedAt =
-        now;
-
-
-    const {
-        error
-    } =
-        await supabaseClient
-            .from("conversations")
-            .update({
-                updated_at:
-                    now
-            })
-            .eq(
-                "id",
-                conversation.id
-            )
-            .eq(
-                "user_id",
-                currentUser.id
-            );
-
-
-    if (error) {
-
-        console.error(
-            "Could not update conversation time:",
-            error
-        );
-    }
 }
 
 
 /* =========================================
-   RENDER CONVERSATION LIST
+   HELP
 ========================================= */
 
-function renderConversationList() {
+if (helpBtn) {
 
-    if (!conversationList) {
-        return;
-    }
+    helpBtn.addEventListener(
+        "click",
+        () => {
 
+            openModal(`
+                <h2>About NOVA</h2>
 
-    conversationList.innerHTML =
-        "";
+                <p>
+                    NOVA is your AI workspace for
+                    asking questions, learning,
+                    creating, coding, analyzing
+                    problems and developing ideas.
+                </p>
 
+                <br>
 
-    if (
-        !conversations.length
-    ) {
+                <p>
+                    Start a new conversation,
+                    choose an earlier conversation
+                    from the sidebar, or use one of
+                    the starter prompts.
+                </p>
 
-        conversationList.innerHTML = `
-            <div style="
-                padding:14px;
-                color:#777;
-                font-size:13px;
-            ">
-                No conversations yet
-            </div>
-        `;
+                <br>
 
-        return;
-    }
+                <p>
+                    You can also copy or regenerate
+                    NOVA's responses.
+                </p>
+            `);
 
+            closeMobileSidebar();
 
-    conversations.forEach(
-        conversation => {
-
-            const item =
-                document.createElement(
-                    "div"
-                );
-
-
-            item.className =
-                "conversation-item";
-
-
-            if (
-                conversation.id ===
-                currentConversationId
-            ) {
-
-                item.classList.add(
-                    "active"
-                );
-            }
-
-
-            item.textContent =
-                conversation.title ||
-                "New chat";
-
-
-            item.addEventListener(
-                "click",
-                () => {
-
-                    currentConversationId =
-                        conversation.id;
-
-
-                    loadConversation(
-                        conversation.id
-                    );
-
-
-                    renderConversationList();
-
-
-                    closeMobileSidebar();
-                }
-            );
-
-
-            conversationList.appendChild(
-                item
-            );
         }
     );
+
 }
 
 
 /* =========================================
-   LOAD CONVERSATION
+   LOGOUT
 ========================================= */
 
-function loadConversation(
-    id
-) {
+if (logoutBtn) {
 
-    const conversation =
-        conversations.find(
-            item =>
-                item.id === id
-        );
-
-
-    if (!conversation) {
-
-        clearMessages();
-
-        return;
-    }
-
-
-    currentConversationId =
-        id;
-
-
-    clearMessages();
-
-
-    conversation.messages.forEach(
-        message => {
-
-            addMessageToScreen(
-                message.role,
-                message.content
-            );
-        }
-    );
-
-
-    renderConversationList();
-}
-
-
-/* =========================================
-   MESSAGE UI
-========================================= */
-
-function clearMessages() {
-
-    if (!messagesContainer) {
-        return;
-    }
-
-
-    messagesContainer.innerHTML =
-        "";
-
-
-    if (welcomeScreen) {
-
-        welcomeScreen.style.display =
-            "flex";
-    }
-}
-
-
-function hideWelcomeScreen() {
-
-    if (welcomeScreen) {
-
-        welcomeScreen.style.display =
-            "none";
-    }
-}
-
-
-function addMessageToScreen(
-    role,
-    content
-) {
-
-    hideWelcomeScreen();
-
-
-    if (!messagesContainer) {
-        return;
-    }
-
-
-    const wrapper =
-        document.createElement(
-            "div"
-        );
-
-
-    wrapper.className =
-        `message ${
-            role === "user"
-                ? "user-message"
-                : "ai-message"
-        }`;
-
-
-    const bubble =
-        document.createElement(
-            "div"
-        );
-
-
-    bubble.className =
-        "message-bubble";
-
-
-    bubble.textContent =
-        content;
-
-
-    wrapper.appendChild(
-        bubble
-    );
-
-
-    messagesContainer.appendChild(
-        wrapper
-    );
-
-
-    scrollToBottom();
-}
-
-
-/* =========================================
-   SAVE MESSAGE
-========================================= */
-
-async function saveMessageToSupabase(
-    conversationId,
-    role,
-    content
-) {
-
-    if (
-        !currentUser ||
-        !supabaseClient ||
-        !conversationId
-    ) {
-        return null;
-    }
-
-
-    const databaseRole =
-        role === "ai"
-            ? "assistant"
-            : role;
-
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-            .from("messages")
-            .insert({
-
-                conversation_id:
-                    conversationId,
-
-                user_id:
-                    currentUser.id,
-
-                role:
-                    databaseRole,
-
-                content:
-                    content
-
-            })
-            .select()
-            .single();
-
-
-    if (error) {
-
-        console.error(
-            "Could not save message:",
-            error
-        );
-
-        return null;
-    }
-
-
-    return data;
-}
-
-
-/* =========================================
-   SEND MESSAGE
-========================================= */
-
-async function sendMessage() {
-
-    if (isSending) {
-        return;
-    }
-
-
-    const text =
-        messageInput
-            ?.value
-            ?.trim();
-
-
-    if (!text) {
-        return;
-    }
-
-
-    if (!currentUser) {
-
-        showAuthScreen();
-
-        return;
-    }
-
-
-    isSending = true;
-
-
-    if (sendBtn) {
-
-        sendBtn.disabled =
-            true;
-    }
-
-
-    try {
-
-        let conversation =
-            getCurrentConversation();
-
-
-        if (!conversation) {
-
-            conversation =
-                await createConversation();
-        }
-
-
-        if (!conversation) {
-
-            throw new Error(
-                "Could not create a conversation."
-            );
-        }
-
-
-        hideWelcomeScreen();
-
-
-        messageInput.value =
-            "";
-
-
-        messageInput.style.height =
-            "auto";
-
-
-        detectMemory(
-            text
-        );
-
-
-        conversation.messages.push({
-
-            role:
-                "user",
-
-            content:
-                text
-
-        });
-
-
-        addMessageToScreen(
-            "user",
-            text
-        );
-
-
-        await saveMessageToSupabase(
-            conversation.id,
-            "user",
-            text
-        );
-
-
-        /* --------------------------------
-           SET TITLE
-        -------------------------------- */
-
-        const userMessages =
-            conversation.messages.filter(
-                message =>
-                    message.role ===
-                    "user"
-            );
-
-
-        if (
-            userMessages.length === 1 &&
-            conversation.title ===
-                "New chat"
-        ) {
-
-            let title =
-                text
-                    .replace(
-                        /\s+/g,
-                        " "
-                    )
-                    .trim();
-
-
-            if (
-                title.length > 45
-            ) {
-
-                title =
-                    title.substring(
-                        0,
-                        45
-                    ) +
-                    "...";
-            }
-
-
-            await updateConversationTitle(
-                conversation,
-                title
-            );
-        }
-
-
-        await touchConversation(
-            conversation
-        );
-
-
-        /* --------------------------------
-           AI RESPONSE
-        -------------------------------- */
-
-        await generateAIResponse(
-            conversation
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Send message error:",
-            error
-        );
-
-
-        addMessageToScreen(
-            "ai",
-            "Something went wrong. Please try again."
-        );
-
-
-    } finally {
-
-        isSending =
-            false;
-
-
-        if (sendBtn) {
-
-            sendBtn.disabled =
-                false;
-        }
-
-
-        messageInput?.focus();
-    }
-}
-
-
-/* =========================================
-   AI RESPONSE
-========================================= */
-
-async function generateAIResponse(
-    conversation
-) {
-
-    if (!conversation) {
-        return;
-    }
-
-
-    const loadingElement =
-        document.createElement(
-            "div"
-        );
-
-
-    loadingElement.className =
-        "message ai-message nova-loading";
-
-
-    loadingElement.innerHTML = `
-        <div class="message-bubble">
-            NOVA is thinking...
-        </div>
-    `;
-
-
-    messagesContainer.appendChild(
-        loadingElement
-    );
-
-
-    scrollToBottom();
-
-
-    try {
-
-        const messagesForAI =
-            [];
-
-
-        /* --------------------------------
-           MEMORY CONTEXT
-        -------------------------------- */
-
-        const memoryContext =
-            getMemoryContext();
-
-
-        messagesForAI.push({
-
-            role:
-                "system",
-
-            content: `
-You are NOVA, an AI workspace assistant.
-
-Be helpful, accurate, clear, practical and honest.
-
-${memoryContext}
-
-Use saved memories naturally when relevant.
-Do not mention the memory system unless the user asks about it.
-`
-        });
-
-
-        /* --------------------------------
-           CONVERSATION HISTORY
-        -------------------------------- */
-
-        conversation.messages.forEach(
-            message => {
-
-                messagesForAI.push({
-
-                    role:
-                        message.role === "ai"
-                            ? "assistant"
-                            : message.role,
-
-                    content:
-                        message.content
-
-                });
-
-            }
-        );
-
-
-        console.log(
-            "NOVA: sending AI request",
-            messagesForAI
-        );
-
-
-        /* --------------------------------
-           API REQUEST
-        -------------------------------- */
-
-        const response =
-            await fetch(
-                "/api/chat",
-                {
-                    method:
-                        "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body:
-                        JSON.stringify({
-                            messages:
-                                messagesForAI
-                        })
-                }
-            );
-
-
-        /* --------------------------------
-           READ RESPONSE SAFELY
-        -------------------------------- */
-
-        let data = null;
-
-        const responseText =
-            await response.text();
-
-
-        try {
-
-            data =
-                responseText
-                    ? JSON.parse(
-                        responseText
-                    )
-                    : {};
-
-        } catch {
-
-            throw new Error(
-                `NOVA API returned invalid data. HTTP ${response.status}`
-            );
-        }
-
-
-        console.log(
-            "NOVA API response:",
-            response.status,
-            data
-        );
-
-
-        /* --------------------------------
-           API ERROR
-        -------------------------------- */
-
-        if (!response.ok) {
-
-            throw new Error(
-                data?.error ||
-                data?.message ||
-                `AI request failed with HTTP ${response.status}.`
-            );
-        }
-
-
-        /* --------------------------------
-           GET AI ANSWER
-        -------------------------------- */
-
-        const aiText =
-            data?.answer ||
-            data?.reply ||
-            data?.message ||
-            data?.content;
-
-
-        if (
-            typeof aiText !== "string" ||
-            !aiText.trim()
-        ) {
-
-            throw new Error(
-                "The AI service returned an empty response."
-            );
-        }
-
-
-        /* --------------------------------
-           REMOVE LOADING
-        -------------------------------- */
-
-        loadingElement.remove();
-
-
-        /* --------------------------------
-           SAVE AI MESSAGE LOCALLY
-        -------------------------------- */
-
-        conversation.messages.push({
-
-            role:
-                "ai",
-
-            content:
-                aiText
-
-        });
-
-
-        /* --------------------------------
-           SHOW AI MESSAGE
-        -------------------------------- */
-
-        addMessageToScreen(
-            "ai",
-            aiText
-        );
-
-
-        /* --------------------------------
-           SAVE AI MESSAGE TO SUPABASE
-        -------------------------------- */
-
-        await saveMessageToSupabase(
-            conversation.id,
-            "ai",
-            aiText
-        );
-
-
-        /* --------------------------------
-           UPDATE CONVERSATION
-        -------------------------------- */
-
-        await touchConversation(
-            conversation
-        );
-
-
-        renderConversationList();
-
-
-    } catch (error) {
-
-        console.error(
-            "AI response error:",
-            error
-        );
-
-
-        loadingElement.remove();
-
-
-        /*
-           IMPORTANT:
-           The user's message stays visible.
-           We only add the actual error message.
-        */
-
-        let errorMessage =
-            "I couldn't reach the AI service right now. Please try again.";
-
-
-        const errorText =
-            error?.message ||
-            "";
-
-
-        if (
-            errorText.includes(
-                "HTTP 401"
-            )
-        ) {
-
-            errorMessage =
-                "NOVA's AI service rejected the request. Check the OpenRouter API key.";
-
-        } else if (
-            errorText.includes(
-                "HTTP 402"
-            )
-        ) {
-
-            errorMessage =
-                "The AI provider requires available credits or a supported free model.";
-
-        } else if (
-            errorText.includes(
-                "HTTP 403"
-            )
-        ) {
-
-            errorMessage =
-                "The AI provider rejected this request.";
-
-        } else if (
-            errorText.includes(
-                "HTTP 404"
-            )
-        ) {
-
-            errorMessage =
-                "NOVA's AI endpoint could not be found.";
-
-        } else if (
-            errorText.includes(
-                "HTTP 429"
-            )
-        ) {
-
-            errorMessage =
-                "The AI service is temporarily rate-limited. Please try again shortly.";
-
-        } else if (
-            errorText.includes(
-                "HTTP 500"
-            )
-        ) {
-
-            errorMessage =
-                "NOVA's server encountered an error while contacting the AI service.";
-        }
-
-
-        addMessageToScreen(
-            "ai",
-            errorMessage
-        );
-    }
-}
-
-
-/* =========================================
-   MEMORY PANEL
-========================================= */
-
-function renderMemoryPanel() {
-
-    const existing =
-        document.getElementById(
-            "novaMemoryPanel"
-        );
-
-
-    if (existing) {
-        existing.remove();
-    }
-
-
-    const panel =
-        document.createElement(
-            "div"
-        );
-
-
-    panel.id =
-        "novaMemoryPanel";
-
-
-    panel.innerHTML = `
-        <div class="nova-memory-overlay"></div>
-
-        <div class="nova-memory-box">
-
-            <button
-                id="closeMemoryPanel"
-                class="nova-memory-close"
-            >
-                ×
-            </button>
-
-            <h2>NOVA Memory</h2>
-
-            <p>
-                Memories help NOVA remember useful information
-                about you across conversations.
-            </p>
-
-            <div id="novaMemoryList"></div>
-
-            <button
-                id="clearAllMemories"
-                class="nova-clear-memory"
-            >
-                Clear all memories
-            </button>
-
-        </div>
-    `;
-
-
-    document.body.appendChild(
-        panel
-    );
-
-
-    const style =
-        document.createElement(
-            "style"
-        );
-
-
-    style.textContent = `
-        #novaMemoryPanel {
-            position: fixed;
-            inset: 0;
-            z-index: 9000;
-        }
-
-        .nova-memory-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0,0,0,.65);
-        }
-
-        .nova-memory-box {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%,-50%);
-            width: min(90%,500px);
-            max-height: 80vh;
-            overflow-y: auto;
-            padding: 25px;
-            border-radius: 18px;
-            background: #111;
-            color: white;
-            border: 1px solid rgba(255,255,255,.1);
-        }
-
-        .nova-memory-box h2 {
-            margin-top: 0;
-        }
-
-        .nova-memory-box p {
-            color: #999;
-            line-height: 1.5;
-            font-size: 14px;
-        }
-
-        .nova-memory-close {
-            float: right;
-            border: 0;
-            background: transparent;
-            color: white;
-            font-size: 28px;
-            cursor: pointer;
-        }
-
-        .nova-memory-item {
-            display: flex;
-            gap: 10px;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px;
-            margin-top: 10px;
-            border-radius: 10px;
-            background: rgba(255,255,255,.05);
-            font-size: 13px;
-        }
-
-        .nova-memory-delete {
-            border: 0;
-            background: transparent;
-            color: #ff7777;
-            cursor: pointer;
-        }
-
-        .nova-clear-memory {
-            margin-top: 18px;
-            width: 100%;
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,.1);
-            background: rgba(255,255,255,.05);
-            color: white;
-            cursor: pointer;
-        }
-    `;
-
-
-    document.head.appendChild(
-        style
-    );
-
-
-    const list =
-        document.getElementById(
-            "novaMemoryList"
-        );
-
-
-    if (
-        !novaMemories.length
-    ) {
-
-        list.innerHTML = `
-            <p>No memories saved yet.</p>
-        `;
-
-    } else {
-
-        novaMemories.forEach(
-            memory => {
-
-                const item =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                item.className =
-                    "nova-memory-item";
-
-
-                const text =
-                    document.createElement(
-                        "span"
-                    );
-
-
-                text.textContent =
-                    memory.content;
-
-
-                const deleteButton =
-                    document.createElement(
-                        "button"
-                    );
-
-
-                deleteButton.className =
-                    "nova-memory-delete";
-
-
-                deleteButton.textContent =
-                    "Delete";
-
-
-                deleteButton.addEventListener(
-                    "click",
-                    () =>
-                        deleteMemory(
-                            memory.id
-                        )
-                );
-
-
-                item.appendChild(
-                    text
-                );
-
-
-                item.appendChild(
-                    deleteButton
-                );
-
-
-                list.appendChild(
-                    item
-                );
-            }
-        );
-    }
-
-
-    document
-        .getElementById(
-            "closeMemoryPanel"
-        )
-        .addEventListener(
-            "click",
-            () =>
-                panel.remove()
-        );
-
-
-    document
-        .getElementById(
-            "clearAllMemories"
-        )
-        .addEventListener(
-            "click",
-            clearAllMemories
-        );
-}
-
-
-async function deleteMemory(
-    id
-) {
-
-    if (
-        !currentUser ||
-        !supabaseClient
-    ) {
-        return;
-    }
-
-
-    const {
-        error
-    } =
-        await supabaseClient
-            .from("memories")
-            .delete()
-            .eq(
-                "id",
-                id
-            )
-            .eq(
-                "user_id",
-                currentUser.id
-            );
-
-
-    if (error) {
-
-        console.error(
-            "Could not delete memory:",
-            error
-        );
-
-        return;
-    }
-
-
-    novaMemories =
-        novaMemories.filter(
-            memory =>
-                memory.id !== id
-        );
-
-
-    renderMemoryPanel();
-}
-
-
-async function clearAllMemories() {
-
-    if (
-        !currentUser ||
-        !supabaseClient
-    ) {
-        return;
-    }
-
-
-    const confirmed =
-        confirm(
-            "Delete all NOVA memories?"
-        );
-
-
-    if (!confirmed) {
-        return;
-    }
-
-
-    const {
-        error
-    } =
-        await supabaseClient
-            .from("memories")
-            .delete()
-            .eq(
-                "user_id",
-                currentUser.id
-            );
-
-
-    if (error) {
-
-        console.error(
-            "Could not clear memories:",
-            error
-        );
-
-        return;
-    }
-
-
-    novaMemories = [];
-
-
-    renderMemoryPanel();
-}
-
-
-/* =========================================
-   SETTINGS / LOGOUT
-========================================= */
-
-function openSettings() {
-
-    const panel =
-        document.createElement(
-            "div"
-        );
-
-
-    panel.id =
-        "novaSettingsPanel";
-
-
-    const email =
-        currentUser?.email ||
-        "Unknown user";
-
-
-    panel.innerHTML = `
-        <div class="nova-settings-overlay"></div>
-
-        <div class="nova-settings-box">
-
-            <button
-                id="closeNovaSettings"
-                class="nova-settings-close"
-            >
-                ×
-            </button>
-
-            <h2>NOVA Settings</h2>
-
-            <p>
-                Logged in as:
-            </p>
-
-            <strong>
-                ${escapeHtml(email)}
-            </strong>
-
-            <button
-                id="openNovaMemories"
-                class="nova-settings-button"
-            >
-                🧠 Manage memories
-            </button>
-
-            <button
-                id="novaLogout"
-                class="nova-settings-button logout"
-            >
-                Log out
-            </button>
-
-        </div>
-    `;
-
-
-    document.body.appendChild(
-        panel
-    );
-
-
-    const style =
-        document.createElement(
-            "style"
-        );
-
-
-    style.textContent = `
-        #novaSettingsPanel {
-            position: fixed;
-            inset: 0;
-            z-index: 8000;
-        }
-
-        .nova-settings-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0,0,0,.65);
-        }
-
-        .nova-settings-box {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%,-50%);
-            width: min(90%,400px);
-            padding: 25px;
-            border-radius: 18px;
-            background: #111;
-            color: white;
-            border: 1px solid rgba(255,255,255,.1);
-        }
-
-        .nova-settings-close {
-            float: right;
-            border: 0;
-            background: transparent;
-            color: white;
-            font-size: 28px;
-            cursor: pointer;
-        }
-
-        .nova-settings-box p {
-            color: #888;
-            margin-bottom: 5px;
-        }
-
-        .nova-settings-button {
-            width: 100%;
-            margin-top: 18px;
-            padding: 13px;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,.1);
-            background: rgba(255,255,255,.06);
-            color: white;
-            cursor: pointer;
-        }
-
-        .nova-settings-button.logout {
-            color: #ff8080;
-        }
-    `;
-
-
-    document.head.appendChild(
-        style
-    );
-
-
-    document
-        .getElementById(
-            "closeNovaSettings"
-        )
-        .addEventListener(
-            "click",
-            () =>
-                panel.remove()
-        );
-
-
-    document
-        .getElementById(
-            "openNovaMemories"
-        )
-        .addEventListener(
-            "click",
-            () => {
-
-                panel.remove();
-
-                renderMemoryPanel();
-            }
-        );
-
-
-    document
-        .getElementById(
-            "novaLogout"
-        )
-        .addEventListener(
-            "click",
-            logout
-        );
-}
-
-
-async function logout() {
-
-    if (!supabaseClient) {
-        return;
-    }
-
-
-    const {
-        error
-    } =
-        await supabaseClient
-            .auth
-            .signOut();
-
-
-    if (error) {
-
-        console.error(
-            "Logout error:",
-            error
-        );
-
-        return;
-    }
-
-
-    conversations = [];
-
-    novaMemories = [];
-
-    currentConversationId =
-        null;
-
-
-    clearMessages();
-
-
-    const settings =
-        document.getElementById(
-            "novaSettingsPanel"
-        );
-
-
-    if (settings) {
-        settings.remove();
-    }
-}
-
-
-/* =========================================
-   SETTINGS BUTTON
-========================================= */
-
-document.addEventListener(
-    "click",
-    event => {
-
-        const text =
-            event.target
-                ?.textContent
-                ?.trim()
-                ?.toLowerCase();
-
-
-        if (!text) {
-            return;
-        }
-
-
-        if (
-            text === "settings" ||
-            text.includes(
-                "⚙settings"
-            )
-        ) {
-
-            openSettings();
-        }
-    }
-);
-
-
-/* =========================================
-   NEW CHAT
-========================================= */
-
-if (newChatBtn) {
-
-    newChatBtn.addEventListener(
+    logoutBtn.addEventListener(
         "click",
         async () => {
 
-            if (!currentUser) {
-
-                showAuthScreen();
-
+            if (!supabaseClient) {
                 return;
             }
 
 
-            await createConversation();
+            try {
 
+                await supabaseClient.auth.signOut();
 
-            clearMessages();
+            } catch (error) {
 
+                console.error(
+                    "Logout error:",
+                    error
+                );
 
-            closeMobileSidebar();
-
-
-            messageInput?.focus();
-        }
-    );
-}
-
-
-/* =========================================
-   SEND BUTTON
-========================================= */
-
-if (sendBtn) {
-
-    sendBtn.addEventListener(
-        "click",
-        sendMessage
-    );
-}
-
-
-/* =========================================
-   ENTER KEY
-========================================= */
-
-if (messageInput) {
-
-    messageInput.addEventListener(
-        "keydown",
-        event => {
-
-            if (
-                event.key === "Enter" &&
-                !event.shiftKey
-            ) {
-
-                event.preventDefault();
-
-                sendMessage();
             }
 
         }
     );
 
-
-    messageInput.addEventListener(
-        "input",
-        () => {
-
-            messageInput.style.height =
-                "auto";
-
-
-            messageInput.style.height =
-                Math.min(
-                    messageInput.scrollHeight,
-                    180
-                ) + "px";
-        }
-    );
 }
 
 
 /* =========================================
-   STARTER CARDS
+   MODAL
 ========================================= */
 
-starterCards.forEach(
-    card => {
+function openModal(content) {
 
-        card.addEventListener(
-            "click",
-            () => {
-
-                const prompt =
-                    card.dataset.prompt ||
-                    card.querySelector("p")
-                        ?.textContent ||
-                    card.querySelector("span")
-                        ?.textContent ||
-                    "";
-
-
-                if (!prompt) {
-                    return;
-                }
-
-
-                messageInput.value =
-                    prompt;
-
-
-                sendMessage();
-            }
-        );
-    }
-);
-
-
-/* =========================================
-   MOBILE SIDEBAR
-========================================= */
-
-function openMobileSidebar() {
-
-    if (sidebar) {
-
-        sidebar.classList.add(
-            "open"
-        );
-    }
-
-
-    if (sidebarOverlay) {
-
-        sidebarOverlay.classList.add(
-            "active"
-        );
-    }
-}
-
-
-function closeMobileSidebar() {
-
-    if (sidebar) {
-
-        sidebar.classList.remove(
-            "open"
-        );
-    }
-
-
-    if (sidebarOverlay) {
-
-        sidebarOverlay.classList.remove(
-            "active"
-        );
-    }
-}
-
-
-if (menuBtn) {
-
-    menuBtn.addEventListener(
-        "click",
-        openMobileSidebar
-    );
-}
-
-
-if (sidebarOverlay) {
-
-    sidebarOverlay.addEventListener(
-        "click",
-        closeMobileSidebar
-    );
-}
-
-
-/* =========================================
-   SCROLL
-========================================= */
-
-function scrollToBottom() {
-
-    if (!messagesContainer) {
+    if (!modalOverlay ||
+        !modalContent) {
         return;
     }
 
 
-    messagesContainer.scrollTop =
-        messagesContainer.scrollHeight;
+    modalContent.innerHTML =
+        content;
+
+
+    modalOverlay.classList.add(
+        "active"
+    );
+
+}
+
+
+function closeModal() {
+
+    modalOverlay?.classList.remove(
+        "active"
+    );
+
+}
+
+
+if (modalClose) {
+
+    modalClose.addEventListener(
+        "click",
+        closeModal
+    );
+
+}
+
+
+if (modalOverlay) {
+
+    modalOverlay.addEventListener(
+        "click",
+        (event) => {
+
+            if (
+                event.target ===
+                modalOverlay
+            ) {
+
+                closeModal();
+
+            }
+
+        }
+    );
+
 }
 
 
@@ -3241,7 +2314,7 @@ function scrollToBottom() {
    HTML ESCAPE
 ========================================= */
 
-function escapeHtml(
+function escapeHTML(
     value
 ) {
 
@@ -3266,39 +2339,34 @@ function escapeHtml(
             /'/g,
             "&#039;"
         );
+
 }
 
 
 /* =========================================
-   INITIALIZE NOVA
+   CONFIG ERROR
 ========================================= */
 
-function initializeNOVA() {
+function showConfigError(
+    message
+) {
 
-    console.log(
-        "NOVA initialized for:",
-        currentUser?.email
-    );
-
-
-    renderConversationList();
-
-
-    if (
-        currentConversationId
-    ) {
-
-        loadConversation(
-            currentConversationId
-        );
-
-    } else {
-
-        clearMessages();
+    if (!authScreen) {
+        return;
     }
 
 
-    messageInput?.focus();
+    authScreen.style.display =
+        "flex";
+
+
+    if (authMessage) {
+
+        authMessage.textContent =
+            `NOVA setup error: ${message}`;
+
+    }
+
 }
 
 
@@ -3306,6 +2374,6 @@ function initializeNOVA() {
    START
 ========================================= */
 
-createAuthScreen();
+updateAuthMode();
 
 initializeSupabase();
