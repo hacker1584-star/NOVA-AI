@@ -8,6 +8,11 @@
     content="width=device-width, initial-scale=1.0"
   >
 
+  <meta
+    name="theme-color"
+    content="#080a0f"
+  >
+
   <title>NOVA AI</title>
 
   <link rel="stylesheet" href="style.css">
@@ -16,20 +21,113 @@
 <body>
 
   <!-- =====================================
+       AUTH SCREEN
+  ====================================== -->
+
+  <div class="auth-screen" id="authScreen">
+
+    <div class="auth-card">
+
+      <div class="auth-logo">
+        ✦
+      </div>
+
+      <h1>NOVA</h1>
+
+      <p class="auth-subtitle">
+        Your intelligent workspace.
+      </p>
+
+      <form id="authForm">
+
+        <div class="auth-field">
+          <label>Email</label>
+
+          <input
+            id="authEmail"
+            type="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          >
+        </div>
+
+        <div class="auth-field">
+          <label>Password</label>
+
+          <input
+            id="authPassword"
+            type="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          >
+        </div>
+
+        <div
+          class="auth-name-field"
+          id="authNameField"
+        >
+          <label>Name</label>
+
+          <input
+            id="authName"
+            type="text"
+            placeholder="Your name"
+            autocomplete="name"
+          >
+        </div>
+
+        <button
+          class="auth-submit"
+          id="authSubmit"
+          type="submit"
+        >
+          Continue
+        </button>
+
+      </form>
+
+      <p
+        class="auth-message"
+        id="authMessage"
+      ></p>
+
+      <button
+        class="auth-switch"
+        id="authSwitch"
+        type="button"
+      >
+        Create an account
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- =====================================
        SIDEBAR
   ====================================== -->
 
-  <aside class="sidebar" id="sidebar">
+  <aside
+    class="sidebar"
+    id="sidebar"
+  >
 
     <div class="sidebar-top">
 
       <div class="brand">
-        <div class="brand-icon">✦</div>
+
+        <div class="brand-icon">
+          ✦
+        </div>
 
         <div>
           <strong>NOVA</strong>
-          <span>AI</span>
+          <span>AI WORKSPACE</span>
         </div>
+
       </div>
 
       <button
@@ -37,7 +135,7 @@
         id="newChatBtn"
       >
         <span>＋</span>
-        New chat
+        <span>New chat</span>
       </button>
 
     </div>
@@ -49,8 +147,13 @@
         RECENT
       </p>
 
-      <div id="conversationList">
-        <!-- Conversations will appear here -->
+      <div id="conversationList"></div>
+
+      <div
+        class="empty-conversations"
+        id="emptyConversations"
+      >
+        No conversations yet
       </div>
 
     </div>
@@ -58,14 +161,28 @@
 
     <div class="sidebar-bottom">
 
-      <button class="sidebar-btn">
-        ⚙
+      <button
+        class="sidebar-btn"
+        id="settingsBtn"
+      >
+        <span>⚙</span>
         <span>Settings</span>
       </button>
 
-      <button class="sidebar-btn">
-        ?
+      <button
+        class="sidebar-btn"
+        id="helpBtn"
+      >
+        <span>?</span>
         <span>Help</span>
+      </button>
+
+      <button
+        class="sidebar-btn logout-btn"
+        id="logoutBtn"
+      >
+        <span>↪</span>
+        <span>Log out</span>
       </button>
 
     </div>
@@ -113,10 +230,13 @@
 
 
     <!-- =====================================
-         CHAT
+         CHAT AREA
     ====================================== -->
 
-    <section class="chat-container">
+    <section
+      class="chat-container"
+      id="chatContainer"
+    >
 
       <!-- WELCOME -->
 
@@ -125,22 +245,23 @@
         id="welcomeScreen"
       >
 
-        <div class="welcome-icon">
-          ✦
+        <div class="nova-orb">
+          <span>✦</span>
+        </div>
+
+        <div class="welcome-eyebrow">
+          YOUR AI WORKSPACE
         </div>
 
         <h1>
-          How can I help?
+          What are we building today?
         </h1>
 
         <p>
-          I'm NOVA, your AI workspace.
-          Ask a question, solve a problem,
-          or start building something.
+          Ask NOVA anything. Learn, create, analyze,
+          code, plan, or explore an idea.
         </p>
 
-
-        <!-- STARTER CARDS -->
 
         <div class="starter-grid">
 
@@ -148,35 +269,25 @@
             class="starter-card"
             data-prompt="Explain something to me simply"
           >
-
-            <span>◈</span>
+            <div class="starter-icon">◈</div>
 
             <div>
-              <strong>Explain something</strong>
-
-              <small>
-                Make a difficult topic simple
-              </small>
+              <strong>Explain</strong>
+              <small>Make complex ideas simple</small>
             </div>
-
           </button>
 
 
           <button
             class="starter-card"
-            data-prompt="Help me write code"
+            data-prompt="Help me write some code"
           >
-
-            <span>{ }</span>
+            <div class="starter-icon">{ }</div>
 
             <div>
-              <strong>Write code</strong>
-
-              <small>
-                Build or fix a program
-              </small>
+              <strong>Code</strong>
+              <small>Build or fix a program</small>
             </div>
-
           </button>
 
 
@@ -184,17 +295,12 @@
             class="starter-card"
             data-prompt="Help me analyze a problem"
           >
-
-            <span>⌁</span>
+            <div class="starter-icon">⌁</div>
 
             <div>
               <strong>Analyze</strong>
-
-              <small>
-                Break down a problem
-              </small>
+              <small>Break down a problem</small>
             </div>
-
           </button>
 
 
@@ -202,17 +308,12 @@
             class="starter-card"
             data-prompt="Help me create a plan"
           >
-
-            <span>◇</span>
+            <div class="starter-icon">◇</div>
 
             <div>
-              <strong>Create a plan</strong>
-
-              <small>
-                Turn an idea into steps
-              </small>
+              <strong>Plan</strong>
+              <small>Turn an idea into steps</small>
             </div>
-
           </button>
 
         </div>
@@ -225,15 +326,13 @@
       <div
         class="messages"
         id="messages"
-      >
-        <!-- Messages will be inserted here -->
-      </div>
+      ></div>
 
     </section>
 
 
     <!-- =====================================
-         INPUT
+         COMPOSER
     ====================================== -->
 
     <section class="composer-area">
@@ -277,12 +376,37 @@
 
 
   <!-- =====================================
+       MODAL
+  ====================================== -->
+
+  <div
+    class="modal-overlay"
+    id="modalOverlay"
+  >
+
+    <div class="modal">
+
+      <button
+        class="modal-close"
+        id="modalClose"
+      >
+        ×
+      </button>
+
+      <div id="modalContent"></div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =====================================
        SUPABASE
   ====================================== -->
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- NOVA FRONTEND -->
+  <!-- NOVA -->
 
   <script src="script.js"></script>
 
