@@ -2369,6 +2369,66 @@ function showConfigError(
 
 }
 
+/* =========================================
+   NOVA LOCAL TOOL HANDLER
+========================================= */
+
+async function handleNovaLocalTool(userText) {
+
+  if (
+    typeof novaRunToolFromMessage !== "function"
+  ) {
+    return false;
+  }
+
+
+  const result =
+    novaRunToolFromMessage(
+      userText
+    );
+
+
+  if (!result) {
+    return false;
+  }
+
+
+  const answer =
+    novaFormatToolResult(
+      result
+    );
+
+
+  if (!answer) {
+    return false;
+  }
+
+
+  /* Show result in chat */
+
+  addMessage(
+    "ai",
+    answer
+  );
+
+
+  /* Save result */
+
+  if (
+    currentConversationId
+  ) {
+
+    await saveMessageToSupabase(
+      currentConversationId,
+      "ai",
+      answer
+    );
+
+  }
+
+
+  return true;
+}
 
 /* =========================================
    START
