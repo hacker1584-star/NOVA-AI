@@ -1,172 +1,249 @@
+/* =========================================
+   NOVA AI — CHAT API
+========================================= */
+
 export default async function handler(req, res) {
-  // Only POST requests
+
+  /* -----------------------------------------
+     ONLY POST
+  ----------------------------------------- */
+
   if (req.method !== "POST") {
+
     return res.status(405).json({
       error: "Method not allowed"
     });
+
   }
 
+
   try {
-    // Check API key exists
-    if (!process.env.OPENROUTER_API_KEY) {
-      console.error("OPENROUTER_API_KEY is missing");
+
+    const {
+      messages
+    } = req.body || {};
+
+
+    /* -----------------------------------------
+       VALIDATE MESSAGES
+    ----------------------------------------- */
+
+    if (
+      !Array.isArray(messages)
+    ) {
+
+      return res.status(400).json({
+        error:
+          "Messages must be an array."
+      });
+
+    }
+
+
+    /* -----------------------------------------
+       CLEAN MESSAGES
+    ----------------------------------------- */
+
+    const cleanMessages =
+      messages
+        .filter(
+          message =>
+            message &&
+            typeof message.content === "string"
+        )
+        .map(
+          message => ({
+
+            role:
+              message.role === "ai"
+                ? "assistant"
+                : message.role,
+
+            content:
+              message.content
+
+          })
+        );
+
+
+    /* -----------------------------------------
+       OPENROUTER
+    ----------------------------------------- */
+
+    if (
+      !process.env.OPENROUTER_API_KEY
+    ) {
+
+      console.error(
+        "OPENROUTER_API_KEY is missing."
+      );
+
 
       return res.status(500).json({
-        error: "NOVA server is missing the OpenRouter API key."
+        error:
+          "NOVA AI service is not configured."
       });
+
     }
 
-    const { messages } = req.body || {};
 
-    // Validate messages
-    if (!Array.isArray(messages)) {
-      return res.status(400).json({
-        error: "Messages must be an array."
-      });
-    }
+    const response =
+      await fetch(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
 
-    // Convert NOVA's internal roles into OpenRouter-compatible roles
-    const cleanMessages = messages
-      .filter(message =>
-        message &&
-        typeof message.content === "string" &&
-        message.content.trim()
-      )
-      .map(message => {
-        let role = message.role;
+          method: "POST",
 
-        if (role === "ai") {
-          role = "assistant";
+          headers: {
+
+            "Authorization":
+              `Bearer ${process.env.OPENROUTER_API_KEY}`,
+
+            "Content-Type":
+              "application/json",
+
+            "HTTP-Referer":
+              "https://nova-ai039.vercel.app",
+
+            "X-Title":
+              "NOVA AI"
+
+          },
+
+          body:
+            JSON.stringify({
+
+              model:
+                "openrouter/free",
+
+              messages: [
+
+                {
+
+                  role:
+                    "system",
+
+                  content:
+                    `
+You are NOVA, an AI assistant.
+
+Your job is to be useful, clear, practical and honest.
+
+You can:
+- answer questions
+- explain difficult topics
+- help with programming
+- analyze information
+- write and rewrite content
+- help users plan projects
+- reason through problems
+- assist with technical work
+
+When a tool result is supplied by the application, treat that result as authoritative for the calculation or operation that was performed.
+
+Do not claim to have used a tool that was not supplied.
+
+Do not invent current information.
+
+Keep answers reasonably concise unless the user asks for detail.
+`
+                },
+
+                ...cleanMessages
+
+              ]
+
+            })
+
         }
+      );
 
-        if (role !== "user" && role !== "assistant") {
-          role = "user";
-        }
 
-        return {
-          role,
-          content: message.content
-        };
-      });
-
-    if (cleanMessages.length === 0) {
-      return res.status(400).json({
-        error: "No valid messages were provided."
-      });
-    }
-
-    const openRouterMessages = [
-      {
-        role: "system",
-        content:
-          "You are NOVA, a helpful AI assistant and workspace. Be clear, useful, honest, practical, and concise. Help users understand problems, write and debug code, analyze information, brainstorm ideas, and create practical plans."
-      },
-      ...cleanMessages
-    ];
-
-    console.log("NOVA request:", {
-      messageCount: openRouterMessages.length,
-      lastRole:
-        openRouterMessages[openRouterMessages.length - 1]?.role
-    });
-
-    // Call OpenRouter
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-
-        headers: {
-          "Authorization":
-            `Bearer ${process.env.OPENROUTER_API_KEY}`,
-
-          "Content-Type":
-            "application/json",
-
-          "HTTP-Referer":
-            "https://4-star.vercel.app",
-
-          "X-Title":
-            "NOVA AI"
-        },
-
-        body: JSON.stringify({
-          model: "openrouter/free",
-          messages: openRouterMessages
-        })
-      }
+    console.log(
+      "OpenRouter status:",
+      response.status
     );
 
-    const data = await response.json();
 
-    console.log("OpenRouter status:", response.status);
+    const data =
+      await response.json();
 
-    // OpenRouter returned an error
-    if (!response.ok) {
+
+    /* -----------------------------------------
+       HANDLE API ERROR
+    ----------------------------------------- */
+
+    if (
+      !response.ok
+    ) {
+
       console.error(
         "OpenRouter error:",
-        JSON.stringify(data)
+        data
       );
 
-      return res.status(response.status).json({
+
+      return res.status(
+        response.status
+      ).json({
+
         error:
           data?.error?.message ||
-          data?.error?.code ||
           "OpenRouter returned an error."
+
       });
+
     }
 
-    // Check for an error inside a successful response
-    if (
-      data?.choices?.[0]?.finish_reason === "error" ||
-      data?.choices?.[0]?.error
-    ) {
-      const choiceError =
-        data?.choices?.[0]?.error;
 
-      console.error(
-        "OpenRouter choice error:",
-        JSON.stringify(choiceError)
-      );
+    /* -----------------------------------------
+       EXTRACT ANSWER
+    ----------------------------------------- */
 
-      return res.status(500).json({
-        error:
-          choiceError?.message ||
-          "The AI model failed to generate a response."
-      });
-    }
-
-    // Get answer
     const answer =
       data?.choices?.[0]?.message?.content;
 
+
     if (!answer) {
-      console.error(
-        "OpenRouter returned no answer:",
-        JSON.stringify(data)
-      );
 
       return res.status(500).json({
+
         error:
-          "NOVA received an empty response from the AI."
+          "OpenRouter returned no answer."
+
       });
+
     }
 
-    // Success
+
+    /* -----------------------------------------
+       SUCCESS
+    ----------------------------------------- */
+
     return res.status(200).json({
+
       answer
+
     });
 
-  } catch (error) {
+  }
+
+
+  catch (error) {
+
     console.error(
       "NOVA backend error:",
       error
     );
 
+
     return res.status(500).json({
+
       error:
-        error?.message ||
-        "NOVA could not reach the AI service."
+        "NOVA could not connect to the AI service."
+
     });
+
   }
+
 }
