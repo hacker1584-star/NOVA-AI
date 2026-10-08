@@ -915,55 +915,31 @@ async function saveMessageToSupabase(
   role,
   content
 ) {
-
-  if (
-    !currentUser ||
-    !conversationId
-  ) {
+  if (!currentUser || !conversationId) {
     return null;
   }
 
-
+  // Supabase allows: user, ai, system.
+  // Keep "ai" in the database.
   const databaseRole =
-    role === "ai"
-      ? "assistant"
-      : role;
+    role === "assistant" ? "ai" : role;
 
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient
-
-      .from("messages")
-
-      .insert({
-
-        conversation_id:
-          conversationId,
-
-        user_id:
-          currentUser.id,
-
-        role:
-          databaseRole,
-
-        content
-
-      })
-
-      .select(
-        "id,conversation_id,user_id,role,content,created_at"
-      )
-
-      .single();
-
+  const { data, error } = await supabaseClient
+    .from("messages")
+    .insert({
+      conversation_id: conversationId,
+      user_id: currentUser.id,
+      role: databaseRole,
+      content
+    })
+    .select(
+      "id,conversation_id,user_id,role,content,created_at"
+    )
+    .single();
 
   if (error) {
     throw error;
   }
-
 
   return data;
 }
