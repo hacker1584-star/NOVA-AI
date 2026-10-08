@@ -1,12 +1,11 @@
 /* =========================================================
-   NOVA AI — COMPLETE FRONTEND
+    NOVA AI — COMPLETE FRONTEND
 ========================================================= */
 
 "use strict";
 
-
 /* =========================================================
-   GLOBAL STATE
+    GLOBAL STATE
 ========================================================= */
 
 let supabaseClient = null;
@@ -23,9 +22,36 @@ let authMode = "signin";
 
 let sidebarOpen = false;
 
+function normalizeStoredRole(role) {
+  const value = String(role || "").trim().toLowerCase();
+
+  if (value === "assistant") {
+    return "ai";
+  }
+
+  if (value === "user" || value === "ai" || value === "system") {
+    return value;
+  }
+
+  return "user";
+}
+
+function normalizeOpenRouterRole(role) {
+  const value = String(role || "").trim().toLowerCase();
+
+  if (value === "assistant" || value === "ai") {
+    return "assistant";
+  }
+
+  if (value === "user" || value === "system") {
+    return value;
+  }
+
+  return "user";
+}
 
 /* =========================================================
-   DOM HELPERS
+    DOM HELPERS
 ========================================================= */
 
 const $ = id =>
@@ -43,7 +69,7 @@ function qsa(selector) {
 
 
 /* =========================================================
-   INITIALIZATION
+    INITIALIZATION
 ========================================================= */
 
 document.addEventListener(
@@ -65,7 +91,7 @@ async function initialize() {
 
 
 /* =========================================================
-   SUPABASE
+    SUPABASE
 ========================================================= */
 
 async function initializeSupabase() {
@@ -175,6 +201,10 @@ async function initializeSupabase() {
             currentConversationMessages =
               [];
 
+            try {
+              localStorage.removeItem("nova_current_conversation_id");
+            } catch (_) {}
+
             showAuth();
           }
 
@@ -200,7 +230,7 @@ async function initializeSupabase() {
 
 
 /* =========================================================
-   AUTH UI
+    AUTH UI
 ========================================================= */
 
 function showAuth() {
@@ -366,7 +396,6 @@ async function handleAuthSubmit(event) {
 
           });
 
-
       if (error) {
         throw error;
       }
@@ -395,7 +424,6 @@ async function handleAuthSubmit(event) {
             password
 
           });
-
 
       if (error) {
         throw error;
@@ -434,24 +462,17 @@ async function handleAuthSubmit(event) {
 
 
 /* =========================================================
-   ENTER APP
+    ENTER APP
 ========================================================= */
 
 async function enterApp(user) {
 
-  currentUser =
-    user;
-
+  currentUser = user;
 
   showApp();
 
-
-  currentConversationId =
-    null;
-
-  currentConversationMessages =
-    [];
-
+  currentConversationId = null;
+  currentConversationMessages = [];
 
   clearMessages();
 
@@ -464,7 +485,7 @@ async function enterApp(user) {
 
 
 /* =========================================================
-   USER DATA
+    USER DATA
 ========================================================= */
 
 async function loadUserData() {
@@ -476,31 +497,27 @@ async function loadUserData() {
     return;
   }
 
-
-  /*
-    Important:
-    We intentionally do NOT auto-open the previous chat.
-
-    The user can click a conversation.
-  */
-
-  currentConversationId =
-    null;
-
-  currentConversationMessages =
-    [];
-
+  currentConversationId = null;
+  currentConversationMessages = [];
   clearMessages();
 
+  try {
+    const savedConversationId = localStorage.getItem("nova_current_conversation_id");
+
+    if (savedConversationId) {
+      await loadConversation(savedConversationId);
+    }
+  } catch (_) {
+    // Ignore restore failures; user can still browse and create new chats.
+  }
 
   await loadMemories();
-
   await loadConversations();
 }
 
 
 /* =========================================================
-   CONVERSATIONS
+    CONVERSATIONS
 ========================================================= */
 
 async function loadConversations() {
@@ -632,7 +649,7 @@ function renderConversationList(
 
 
 /* =========================================================
-   LOAD ONE CONVERSATION
+    LOAD ONE CONVERSATION
 ========================================================= */
 
 async function loadConversation(
@@ -654,18 +671,7 @@ async function loadConversation(
 
   try {
 
-    /*
-      IMPORTANT BUG FIX:
-
-      Clear the interface BEFORE assigning
-      the database messages.
-
-      The old flow loaded messages and then
-      clearMessages() wiped them.
-    */
-
     clearMessages();
-
 
     const {
       data: conversation,
@@ -699,12 +705,13 @@ async function loadConversation(
 
 
     if (!conversation) {
-
       throw new Error(
         "Conversation not found."
       );
     }
 
+    currentConversationId = conversation.id;
+    localStorage.setItem("nova_current_conversation_id", conversation.id);
 
     const {
       data: messages,
@@ -741,53 +748,27 @@ async function loadConversation(
       throw messageError;
     }
 
-
-    currentConversationId =
-      conversation.id;
-
-
     currentConversationMessages =
       (messages || []).map(
         message => ({
-
-          id:
-            message.id,
-
-          role:
-            message.role ===
-            "assistant"
-              ? "ai"
-              : message.role,
-
-          content:
-            message.content,
-
-          created_at:
-            message.created_at
-
+          id: message.id,
+          role: normalizeStoredRole(message.role),
+          content: typeof message.content === "string" ? message.content : "",
+          created_at: message.created_at
         })
-      );
+      ).filter(message => message.content.trim());
 
-
-    /*
-      Render AFTER state assignment.
-    */
-
-    currentConversationMessages
-      .forEach(
-        message => {
-
-          addMessageToScreen(
-            message.role,
-            message.content,
-            message.id
-          );
-        }
-      );
-
+    currentConversationMessages.forEach(
+      message => {
+        addMessageToScreen(
+          message.role,
+          message.content,
+          message.id
+        );
+      }
+    );
 
     await loadConversations();
-
     scrollToBottom();
 
 
@@ -798,9 +779,10 @@ async function loadConversation(
       error
     );
 
-
+    currentConversationId = null;
+    currentConversationMessages = [];
+    localStorage.removeItem("nova_current_conversation_id");
     clearMessages();
-
 
     addMessageToScreen(
       "ai",
@@ -818,7 +800,7 @@ async function loadConversation(
 
 
 /* =========================================================
-   CREATE CONVERSATION
+    CREATE CONVERSATION
 ========================================================= */
 
 async function createConversation(
@@ -870,16 +852,12 @@ async function createConversation(
   }
 
 
-  currentConversationId =
-    data.id;
+  currentConversationId = data.id;
+  localStorage.setItem("nova_current_conversation_id", data.id);
 
-
-  currentConversationMessages =
-    [];
-
+  currentConversationMessages = [];
 
   await loadConversations();
-
 
   return data;
 }
@@ -907,7 +885,7 @@ function createConversationTitle(
 
 
 /* =========================================================
-   SAVE MESSAGE
+    SAVE MESSAGE
 ========================================================= */
 
 async function saveMessageToSupabase(
@@ -919,10 +897,8 @@ async function saveMessageToSupabase(
     return null;
   }
 
-  // Supabase allows: user, ai, system.
-  // Keep "ai" in the database.
   const databaseRole =
-    role === "assistant" ? "ai" : role;
+    normalizeStoredRole(role);
 
   const { data, error } = await supabaseClient
     .from("messages")
@@ -946,7 +922,7 @@ async function saveMessageToSupabase(
 
 
 /* =========================================================
-   UPDATE CONVERSATION
+    UPDATE CONVERSATION
 ========================================================= */
 
 async function touchConversation(
@@ -980,7 +956,7 @@ async function touchConversation(
 
 
 /* =========================================================
-   SEND MESSAGE
+    SEND MESSAGE
 ========================================================= */
 
 async function sendMessage(
@@ -1010,16 +986,13 @@ async function sendMessage(
   }
 
 
-  isSending =
-    true;
+  isSending = true;
 
 
-  $("sendBtn").disabled =
-    true;
+  $("sendBtn").disabled = true;
 
 
-  input.value =
-    "";
+  input.value = "";
 
 
   resizeTextarea();
@@ -1027,41 +1000,25 @@ async function sendMessage(
 
   try {
 
-    /*
-      Create conversation BEFORE any local
-      tool execution so the first message
-      is not lost.
-    */
-
     if (!currentConversationId) {
-
-      await createConversation(
-        text
-      );
+      const created = await createConversation(text);
+      if (!created?.id) {
+        throw new Error("Conversation could not be created.");
+      }
     }
 
 
     const userMessage = {
-
-      role:
-        "user",
-
-      content:
-        text
-
+      role: "user",
+      content: text
     };
 
-
-    currentConversationMessages.push(
-      userMessage
-    );
-
+    currentConversationMessages.push(userMessage);
 
     addMessageToScreen(
       "user",
       text
     );
-
 
     await saveMessageToSupabase(
       currentConversationId,
@@ -1069,100 +1026,44 @@ async function sendMessage(
       text
     );
 
-
-    await detectAndSaveMemory(
-      text
-    );
-
-
+    await detectAndSaveMemory(text);
     scrollToBottom();
 
-
-    /*
-      Local tools first.
-    */
-
     const localToolHandled =
-      await handleNovaLocalTool(
-        text
-      );
-
+      await handleNovaLocalTool(text);
 
     if (localToolHandled) {
-
-      await touchConversation(
-        currentConversationId
-      );
-
+      await touchConversation(currentConversationId);
       await loadConversations();
-
       return;
     }
 
-
-    /*
-      AI response.
-    */
-
-    const aiAnswer =
-      await generateAIResponse();
-
+    const aiAnswer = await generateAIResponse();
 
     if (!aiAnswer) {
-
-      throw new Error(
-        "NOVA returned an empty answer."
-      );
+      throw new Error("NOVA returned an empty answer.");
     }
 
-
     currentConversationMessages.push({
-
-      role:
-        "ai",
-
-      content:
-        aiAnswer
-
+      role: "ai",
+      content: aiAnswer
     });
 
-
-    const savedAI =
-      await saveMessageToSupabase(
-        currentConversationId,
-        "ai",
-        aiAnswer
-      );
-
-
-    /*
-      The AI response was already rendered
-      inside generateAIResponse().
-
-      Keep database ID available.
-    */
+    const savedAI = await saveMessageToSupabase(
+      currentConversationId,
+      "ai",
+      aiAnswer
+    );
 
     if (savedAI) {
-
-      const last =
-        currentConversationMessages[
-          currentConversationMessages.length - 1
-        ];
-
+      const last = currentConversationMessages[currentConversationMessages.length - 1];
       if (last) {
-        last.id =
-          savedAI.id;
+        last.id = savedAI.id;
       }
     }
 
-
-    await touchConversation(
-      currentConversationId
-    );
-
-
+    await touchConversation(currentConversationId);
     await loadConversations();
-
 
   } catch (error) {
 
@@ -1171,131 +1072,76 @@ async function sendMessage(
       error
     );
 
-
     addMessageToScreen(
       "ai",
       `I couldn't complete that request.\n\n**Error:** ${error?.message || "Unknown error."}`
     );
 
-
   } finally {
 
-    isSending =
-      false;
-
-    $("sendBtn").disabled =
-      false;
-
-    updateNovaStatus(
-      "ONLINE"
-    );
+    isSending = false;
+    $("sendBtn").disabled = false;
+    updateNovaStatus("ONLINE");
   }
 }
 
 
 /* =========================================================
-   AI RESPONSE
+    AI RESPONSE
 ========================================================= */
 
 async function generateAIResponse(
   messagesOverride = null
 ) {
 
-  const thinking =
-    showThinking();
+  const thinking = showThinking();
 
-
-  updateNovaStatus(
-    "THINKING"
-  );
-
+  updateNovaStatus("THINKING");
 
   try {
+    const messages = messagesOverride || currentConversationMessages;
 
-    const messages =
-      messagesOverride ||
-      currentConversationMessages;
+    const messagesForAI = messages
+      .filter(
+        message =>
+          message &&
+          typeof message.content === "string"
+      )
+      .map(
+        message => ({
+          role: normalizeOpenRouterRole(message.role),
+          content: message.content
+        })
+      )
+      .slice(-40);
 
+    const researchMode = shouldNOVAResearch(messagesForAI);
 
-    const messagesForAI =
-      messages
-
-        .filter(
-          message =>
-            message &&
-            typeof message.content ===
-              "string"
-        )
-
-        .map(
-          message => ({
-
-            role:
-              message.role === "ai"
-                ? "assistant"
-                : message.role,
-
-            content:
-              message.content
-
-          })
-        )
-
-        .slice(-40);
-
-
-    const researchMode =
-      shouldNOVAResearch(
-        messagesForAI
-      );
-
-
-    const response =
-      await fetch(
-        "/api/chat",
-        {
-
-          method:
-            "POST",
-
-          headers: {
-
-            "Content-Type":
-              "application/json"
-
-          },
-
-          body:
-            JSON.stringify({
-
-              messages:
-                messagesForAI,
-
-              researchMode
-
-            })
-
-        }
-      );
-
+    const response = await fetch(
+      "/api/chat",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          messages: messagesForAI,
+          researchMode
+        })
+      }
+    );
 
     let data = null;
 
-
     try {
-      data =
-        await response.json();
+      data = await response.json();
     } catch (_) {}
 
-
     if (!response.ok) {
-
       throw new Error(
-        data?.error ||
-        `AI service returned HTTP ${response.status}.`
+        data?.error || `AI service returned HTTP ${response.status}.`
       );
     }
-
 
     const answer =
       data?.answer ||
@@ -1303,49 +1149,30 @@ async function generateAIResponse(
       data?.message ||
       data?.content;
 
-
     if (
       typeof answer !== "string" ||
       !answer.trim()
     ) {
-
       throw new Error(
         "NOVA returned no usable answer."
       );
     }
 
-
-    removeThinking(
-      thinking
-    );
-
-
-    addMessageToScreen(
-      "ai",
-      answer
-    );
-
+    removeThinking(thinking);
+    addMessageToScreen("ai", answer);
 
     return answer.trim();
 
-
   } catch (error) {
-
-    removeThinking(
-      thinking
-    );
-
-    updateNovaStatus(
-      "ONLINE"
-    );
-
+    removeThinking(thinking);
+    updateNovaStatus("ONLINE");
     throw error;
   }
 }
 
 
 /* =========================================================
-   CURRENT INFORMATION DETECTION
+    CURRENT INFORMATION DETECTION
 ========================================================= */
 
 function shouldNOVAResearch(
@@ -1366,17 +1193,9 @@ function shouldNOVAResearch(
   }
 
 
-  const text =
-    lastUser.content
-      .toLowerCase();
-
-
-  /*
-    Explicit research/current requests.
-  */
+  const text = lastUser.content.toLowerCase();
 
   const currentSignals = [
-
     /\blatest\b/,
     /\bcurrent\b/,
     /\btoday\b/,
@@ -1406,7 +1225,6 @@ function shouldNOVAResearch(
     /\b2026\b/
   ];
 
-
   if (
     currentSignals.some(
       pattern =>
@@ -1416,13 +1234,7 @@ function shouldNOVAResearch(
     return true;
   }
 
-
-  /*
-    Queries where freshness normally matters.
-  */
-
   const volatileTopics = [
-
     /\bbitcoin\b/,
     /\bcrypto\b/,
     /\bstock\b/,
@@ -1445,32 +1257,22 @@ function shouldNOVAResearch(
     /\bvercel\b/
   ];
 
-
   if (
     volatileTopics.some(
       pattern =>
         pattern.test(text)
     )
   ) {
-
-    /*
-      Don't force web search for every casual
-      mention of a company.
-
-      Require a question/request around it.
-    */
-
     return /\?|how|what|which|when|where|latest|current|price|update|status|available|released|changed|news|research|look up|compare/i
       .test(text);
   }
-
 
   return false;
 }
 
 
 /* =========================================================
-   LOCAL TOOL HANDLER
+    LOCAL TOOL HANDLER
 ========================================================= */
 
 async function handleNovaLocalTool(
@@ -1524,13 +1326,8 @@ async function handleNovaLocalTool(
 
 
   currentConversationMessages.push({
-
-    role:
-      "ai",
-
-    content:
-      answer
-
+    role: "ai",
+    content: answer
   });
 
 
@@ -1549,15 +1346,9 @@ async function handleNovaLocalTool(
 
 
   if (saved) {
-
-    const last =
-      currentConversationMessages[
-        currentConversationMessages.length - 1
-      ];
-
+    const last = currentConversationMessages[currentConversationMessages.length - 1];
     if (last) {
-      last.id =
-        saved.id;
+      last.id = saved.id;
     }
   }
 
@@ -1567,7 +1358,7 @@ async function handleNovaLocalTool(
 
 
 /* =========================================================
-   MEMORY
+    MEMORY
 ========================================================= */
 
 let cachedMemories = [];
@@ -1612,15 +1403,12 @@ async function loadMemories() {
       error
     );
 
-    cachedMemories =
-      [];
-
+    cachedMemories = [];
     return;
   }
 
 
-  cachedMemories =
-    data || [];
+  cachedMemories = data || [];
 }
 
 
@@ -1633,24 +1421,18 @@ async function detectAndSaveMemory(
   }
 
 
-  const memory =
-    detectMemory(
-      text
-    );
-
+  const memory = detectMemory(text);
 
   if (!memory) {
     return;
   }
 
 
-  const alreadyExists =
-    cachedMemories.some(
-      item =>
-        item.content.toLowerCase() ===
-        memory.toLowerCase()
-    );
-
+  const normalized = memory.toLowerCase().replace(/[.!?]+$/, "");
+  const alreadyExists = cachedMemories.some(
+    item =>
+      String(item.content || "").toLowerCase().replace(/[.!?]+$/, "") === normalized
+  );
 
   if (alreadyExists) {
     return;
@@ -1666,13 +1448,8 @@ async function detectAndSaveMemory(
       .from("memories")
 
       .insert({
-
-        user_id:
-          currentUser.id,
-
-        content:
-          memory
-
+        user_id: currentUser.id,
+        content: memory
       })
 
       .select(
@@ -1693,9 +1470,7 @@ async function detectAndSaveMemory(
   }
 
 
-  cachedMemories.unshift(
-    data
-  );
+  cachedMemories.unshift(data);
 }
 
 
@@ -1750,40 +1525,23 @@ function detectMemory(text) {
 
   for (const pattern of patterns) {
 
-    const match =
-      text.match(
-        pattern.regex
-      );
-
+    const match = text.match(pattern.regex);
 
     if (match?.[1]) {
+      const value = match[1].trim().replace(/[.!?]+$/, "");
 
-      const value =
-        match[1]
-          .trim()
-          .replace(/[.!?]+$/, "");
-
-
-      if (
-        value.length > 1 &&
-        value.length < 200
-      ) {
-
-        return (
-          pattern.prefix +
-          value
-        );
+      if (value.length > 1 && value.length < 200) {
+        return pattern.prefix + value;
       }
     }
   }
-
 
   return null;
 }
 
 
 /* =========================================================
-   MESSAGE RENDERING
+    MESSAGE RENDERING
 ========================================================= */
 
 function addMessageToScreen(
@@ -1792,194 +1550,72 @@ function addMessageToScreen(
   messageId = null
 ) {
 
-  const container =
-    $("messages");
+  const container = $("messages");
 
 
-  /*
-    Remove welcome screen once conversation starts.
-  */
+  $("welcomeScreen")?.classList.add("hidden");
 
-  $("welcomeScreen")
-    ?.classList
-    .add("hidden");
-
-
-  const row =
-    document.createElement(
-      "div"
-    );
-
-
-  row.className =
-    `message-row ${role === "user" ? "user" : "ai"}`;
-
+  const row = document.createElement("div");
+  row.className = `message-row ${role === "user" ? "user" : "ai"}`;
 
   if (messageId) {
-
-    row.dataset.messageId =
-      messageId;
+    row.dataset.messageId = messageId;
   }
 
+  const bubble = document.createElement("div");
+  bubble.className = "message-bubble";
 
-  const bubble =
-    document.createElement(
-      "div"
-    );
-
-
-  bubble.className =
-    "message-bubble";
-
-
-  const content =
-    document.createElement(
-      "div"
-    );
-
-
-  content.className =
-    "message-content";
-
+  const content = document.createElement("div");
+  content.className = "message-content";
 
   if (role === "user") {
-
-    /*
-      User messages are plain text.
-      This avoids interpreting user text as HTML.
-    */
-
-    content.textContent =
-      text;
-
+    content.textContent = text;
   } else {
-
-    content.innerHTML =
-      renderMarkdown(
-        text
-      );
+    content.innerHTML = renderMarkdown(text);
   }
 
-
-  bubble.appendChild(
-    content
-  );
-
+  bubble.appendChild(content);
 
   if (role === "ai") {
+    const actions = document.createElement("div");
+    actions.className = "message-actions";
 
-    const actions =
-      document.createElement(
-        "div"
-      );
+    const copyButton = document.createElement("button");
+    copyButton.type = "button";
+    copyButton.className = "message-action";
+    copyButton.textContent = "Copy";
+    copyButton.addEventListener("click", async () => {
+      await copyText(text);
+      copyButton.textContent = "Copied";
+      setTimeout(() => {
+        copyButton.textContent = "Copy";
+      }, 1200);
+    });
 
+    actions.appendChild(copyButton);
 
-    actions.className =
-      "message-actions";
+    const regenerateButton = document.createElement("button");
+    regenerateButton.type = "button";
+    regenerateButton.className = "message-action";
+    regenerateButton.textContent = "Regenerate";
+    regenerateButton.addEventListener("click", () => regenerateMessage(row));
+    actions.appendChild(regenerateButton);
 
-
-    const copyButton =
-      document.createElement(
-        "button"
-      );
-
-
-    copyButton.type =
-      "button";
-
-    copyButton.className =
-      "message-action";
-
-    copyButton.textContent =
-      "Copy";
-
-
-    copyButton.addEventListener(
-      "click",
-      async () => {
-
-        await copyText(
-          text
-        );
-
-        copyButton.textContent =
-          "Copied";
-
-        setTimeout(
-          () => {
-            copyButton.textContent =
-              "Copy";
-          },
-          1200
-        );
-      }
-    );
-
-
-    actions.appendChild(
-      copyButton
-    );
-
-
-    const regenerateButton =
-      document.createElement(
-        "button"
-      );
-
-
-    regenerateButton.type =
-      "button";
-
-    regenerateButton.className =
-      "message-action";
-
-    regenerateButton.textContent =
-      "Regenerate";
-
-
-    regenerateButton.addEventListener(
-      "click",
-      () => regenerateMessage(
-        row
-      )
-    );
-
-
-    actions.appendChild(
-      regenerateButton
-    );
-
-
-    bubble.appendChild(
-      actions
-    );
+    bubble.appendChild(actions);
   }
 
+  row.appendChild(bubble);
+  container.appendChild(row);
 
-  row.appendChild(
-    bubble
-  );
-
-
-  container.appendChild(
-    row
-  );
-
-
-  wireCodeCopyButtons(
-    row
-  );
-
-
+  wireCodeCopyButtons(row);
   scrollToBottom();
-
 
   return row;
 }
 
 
 /* =========================================================
-   MARKDOWN
+    MARKDOWN
 ========================================================= */
 
 function renderMarkdown(
@@ -2002,7 +1638,6 @@ function renderMarkdown(
     return fallback.innerHTML;
   }
 
-
   const raw =
     marked.parse(
       text || "",
@@ -2011,7 +1646,6 @@ function renderMarkdown(
         breaks: true
       }
     );
-
 
   if (
     typeof DOMPurify ===
@@ -2029,14 +1663,12 @@ function renderMarkdown(
     return fallback.innerHTML;
   }
 
-
   return DOMPurify.sanitize(
     raw,
     {
       USE_PROFILES: {
         html: true
       },
-
       ADD_ATTR: [
         "target",
         "rel"
@@ -2047,7 +1679,7 @@ function renderMarkdown(
 
 
 /* =========================================================
-   CODE COPY
+    CODE COPY
 ========================================================= */
 
 function wireCodeCopyButtons(
@@ -2071,37 +1703,30 @@ function wireCodeCopyButtons(
           return;
         }
 
-
         const code =
           pre.querySelector(
             "code"
           );
 
-
         if (!code) {
           return;
         }
-
 
         const wrapper =
           document.createElement(
             "div"
           );
 
-
         wrapper.className =
           "code-block";
-
 
         const header =
           document.createElement(
             "div"
           );
 
-
         header.className =
           "code-header";
-
 
         const language =
           code.className
@@ -2110,22 +1735,18 @@ function wireCodeCopyButtons(
             )?.[1] ||
           "code";
 
-
         const label =
           document.createElement(
             "span"
           );
 
-
         label.textContent =
           language;
-
 
         const button =
           document.createElement(
             "button"
           );
-
 
         button.type =
           "button";
@@ -2136,11 +1757,9 @@ function wireCodeCopyButtons(
         button.textContent =
           "Copy";
 
-
         button.addEventListener(
           "click",
           async () => {
-
             await copyText(
               code.textContent
             );
@@ -2158,36 +1777,23 @@ function wireCodeCopyButtons(
           }
         );
 
-
-        header.appendChild(
-          label
-        );
-
-        header.appendChild(
-          button
-        );
-
+        header.appendChild(label);
+        header.appendChild(button);
 
         pre.parentNode.insertBefore(
           wrapper,
           pre
         );
 
-
-        wrapper.appendChild(
-          header
-        );
-
-        wrapper.appendChild(
-          pre
-        );
+        wrapper.appendChild(header);
+        wrapper.appendChild(pre);
       }
     );
 }
 
 
 /* =========================================================
-   COPY
+    COPY
 ========================================================= */
 
 async function copyText(
@@ -2195,52 +1801,24 @@ async function copyText(
 ) {
 
   try {
-
-    await navigator.clipboard.writeText(
-      text
-    );
-
+    await navigator.clipboard.writeText(text);
     return true;
-
   } catch (_) {
-
-    const textarea =
-      document.createElement(
-        "textarea"
-      );
-
-
-    textarea.value =
-      text;
-
-    textarea.style.position =
-      "fixed";
-
-    textarea.style.opacity =
-      "0";
-
-
-    document.body.appendChild(
-      textarea
-    );
-
-
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
     textarea.select();
-
-    document.execCommand(
-      "copy"
-    );
-
-
+    document.execCommand("copy");
     textarea.remove();
-
     return true;
   }
 }
 
 
 /* =========================================================
-   REGENERATE
+    REGENERATE
 ========================================================= */
 
 async function regenerateMessage(
@@ -2254,68 +1832,37 @@ async function regenerateMessage(
     return;
   }
 
+  const messageId = row.dataset.messageId;
 
-  /*
-    Find the message represented by this row.
-  */
-
-  const messageId =
-    row.dataset.messageId;
-
-
-  const index =
-    currentConversationMessages.findIndex(
-      message =>
-        message.id ===
-        messageId
-    );
-
+  const index = currentConversationMessages.findIndex(
+    message => message.id === messageId
+  );
 
   if (index === -1) {
-
-    /*
-      If the row has no DB ID, find the
-      last assistant message instead.
-    */
-
     let fallbackIndex = -1;
 
     for (
-      let i =
-        currentConversationMessages.length - 1;
+      let i = currentConversationMessages.length - 1;
       i >= 0;
       i--
     ) {
-
       if (
-        currentConversationMessages[i]
-          .role === "ai"
+        currentConversationMessages[i].role === "ai"
       ) {
-
-        fallbackIndex =
-          i;
-
+        fallbackIndex = i;
         break;
       }
     }
 
-    if (
-      fallbackIndex === -1
-    ) {
+    if (fallbackIndex === -1) {
       return;
     }
 
-    await regenerateFromIndex(
-      fallbackIndex
-    );
-
+    await regenerateFromIndex(fallbackIndex);
     return;
   }
 
-
-  await regenerateFromIndex(
-    index
-  );
+  await regenerateFromIndex(index);
 }
 
 
@@ -2327,339 +1874,167 @@ async function regenerateFromIndex(
     return;
   }
 
-
-  /*
-    Find the user message immediately
-    before the AI response.
-  */
-
-  let userIndex =
-    aiIndex - 1;
-
+  let userIndex = aiIndex - 1;
 
   while (
     userIndex >= 0 &&
-    currentConversationMessages[
-      userIndex
-    ].role !== "user"
+    currentConversationMessages[userIndex].role !== "user"
   ) {
-
     userIndex--;
   }
-
 
   if (userIndex < 0) {
     return;
   }
 
-
-  const aiMessage =
-    currentConversationMessages[
-      aiIndex
-    ];
-
-
-  /*
-    Delete exact DB row if possible.
-  */
+  const aiMessage = currentConversationMessages[aiIndex];
 
   if (aiMessage?.id) {
-
-    const {
-      error
-    } =
-      await supabaseClient
-
-        .from("messages")
-
-        .delete()
-
-        .eq(
-          "id",
-          aiMessage.id
-        )
-
-        .eq(
-          "user_id",
-          currentUser.id
-        );
-
+    const { error } = await supabaseClient
+      .from("messages")
+      .delete()
+      .eq("id", aiMessage.id)
+      .eq("user_id", currentUser.id);
 
     if (error) {
-
-      console.error(
-        "Regeneration delete error:",
-        error
-      );
+      console.error("Regeneration delete error:", error);
     }
   }
 
-
-  /*
-    Remove the AI message from local state.
-  */
-
-  currentConversationMessages.splice(
-    aiIndex,
-    1
-  );
-
-
-  /*
-    Rebuild the visible conversation
-    from local state.
-  */
-
+  currentConversationMessages.splice(aiIndex, 1);
   renderCurrentConversation();
 
-
-  isSending =
-    true;
-
-
-  $("sendBtn").disabled =
-    true;
-
+  isSending = true;
+  $("sendBtn").disabled = true;
 
   try {
+    const answer = await generateAIResponse(currentConversationMessages);
 
-    const answer =
-      await generateAIResponse(
-        currentConversationMessages
-      );
-
-
-    const saved =
-      await saveMessageToSupabase(
-        currentConversationId,
-        "ai",
-        answer
-      );
-
+    const saved = await saveMessageToSupabase(
+      currentConversationId,
+      "ai",
+      answer
+    );
 
     currentConversationMessages.push({
-
-      id:
-        saved?.id || null,
-
-      role:
-        "ai",
-
-      content:
-        answer
-
+      id: saved?.id || null,
+      role: "ai",
+      content: answer
     });
 
-
-    await touchConversation(
-      currentConversationId
-    );
-
-
+    await touchConversation(currentConversationId);
     await loadConversations();
 
-
   } catch (error) {
-
-    console.error(
-      "Regeneration error:",
-      error
-    );
-
-
+    console.error("Regeneration error:", error);
     addMessageToScreen(
       "ai",
       `I couldn't regenerate the answer.\n\n**Error:** ${error?.message || "Unknown error."}`
     );
 
-
   } finally {
-
-    isSending =
-      false;
-
-    $("sendBtn").disabled =
-      false;
-
-    updateNovaStatus(
-      "ONLINE"
-    );
+    isSending = false;
+    $("sendBtn").disabled = false;
+    updateNovaStatus("ONLINE");
   }
 }
 
 
 /* =========================================================
-   RENDER CURRENT CONVERSATION
+    RENDER CURRENT CONVERSATION
 ========================================================= */
 
 function renderCurrentConversation() {
 
-  $("messages").innerHTML =
-    "";
+  $("messages").innerHTML = "";
+  $("welcomeScreen")?.classList.add("hidden");
 
-
-  $("welcomeScreen")
-    ?.classList
-    .add("hidden");
-
-
-  currentConversationMessages
-    .forEach(
-      message => {
-
-        addMessageToScreen(
-          message.role,
-          message.content,
-          message.id
-        );
-      }
-    );
-
+  currentConversationMessages.forEach(
+    message => {
+      addMessageToScreen(
+        message.role,
+        message.content,
+        message.id
+      );
+    }
+  );
 
   scrollToBottom();
 }
 
 
 /* =========================================================
-   THINKING
+    THINKING
 ========================================================= */
 
 function showThinking() {
 
-  $("welcomeScreen")
-    ?.classList
-    .add("hidden");
+  $("welcomeScreen")?.classList.add("hidden");
 
+  const row = document.createElement("div");
+  row.className = "message-row ai";
 
-  const row =
-    document.createElement(
-      "div"
-    );
-
-
-  row.className =
-    "message-row ai";
-
-
-  const bubble =
-    document.createElement(
-      "div"
-    );
-
-
-  bubble.className =
-    "message-bubble";
-
+  const bubble = document.createElement("div");
+  bubble.className = "message-bubble";
 
   bubble.innerHTML = `
-
     <div class="thinking">
-
       <span>NOVA is thinking</span>
-
       <span class="thinking-dot"></span>
-
     </div>
-
   `;
 
-
-  row.appendChild(
-    bubble
-  );
-
-
-  $("messages")
-    .appendChild(
-      row
-    );
-
-
+  row.appendChild(bubble);
+  $("messages").appendChild(row);
   scrollToBottom();
-
-
   return row;
 }
 
 
-function removeThinking(
-  row
-) {
-
+function removeThinking(row) {
   row?.remove();
 }
 
 
 /* =========================================================
-   CLEAR CHAT
+    CLEAR CHAT
 ========================================================= */
 
 function clearMessages() {
-
-  $("messages").innerHTML =
-    "";
-
-
-  currentConversationMessages =
-    [];
-
-
-  $("welcomeScreen")
-    ?.classList
-    .remove("hidden");
-
-
+  $("messages").innerHTML = "";
+  currentConversationMessages = [];
+  $("welcomeScreen")?.classList.remove("hidden");
   scrollToBottom();
 }
 
 
 /* =========================================================
-   NEW CHAT
+    NEW CHAT
 ========================================================= */
 
 async function newChat() {
-
-  currentConversationId =
-    null;
-
-  currentConversationMessages =
-    [];
-
-
+  currentConversationId = null;
+  currentConversationMessages = [];
+  try {
+    localStorage.removeItem("nova_current_conversation_id");
+  } catch (_) {}
   clearMessages();
-
-
   closeMobileSidebar();
-
-
-  updateNovaStatus(
-    "ONLINE"
-  );
+  updateNovaStatus("ONLINE");
 }
 
 
 /* =========================================================
-   THEME
+    THEME
 ========================================================= */
 
 function initializeTheme() {
 
-  const theme =
-    localStorage.getItem(
-      "nova_theme"
-    );
-
+  const theme = localStorage.getItem("nova_theme");
 
   if (theme === "light") {
-
-    document.body
-      .classList
-      .add(
-        "light-theme"
-      );
-
+    document.body.classList.add("light-theme");
   }
-
 
   updateThemeIcon();
 }
@@ -2667,28 +2042,10 @@ function initializeTheme() {
 
 function toggleTheme() {
 
-  document.body
-    .classList
-    .toggle(
-      "light-theme"
-    );
+  document.body.classList.toggle("light-theme");
 
-
-  const light =
-    document.body
-      .classList
-      .contains(
-        "light-theme"
-      );
-
-
-  localStorage.setItem(
-    "nova_theme",
-    light
-      ? "light"
-      : "dark"
-  );
-
+  const light = document.body.classList.contains("light-theme");
+  localStorage.setItem("nova_theme", light ? "light" : "dark");
 
   updateThemeIcon();
 }
@@ -2696,23 +2053,15 @@ function toggleTheme() {
 
 function updateThemeIcon() {
 
-  const light =
-    document.body
-      .classList
-      .contains(
-        "light-theme"
-      );
-
+  const light = document.body.classList.contains("light-theme");
 
   $("themeToggle").textContent =
-    light
-      ? "☀"
-      : "☾";
+    light ? "☀" : "☾";
 }
 
 
 /* =========================================================
-   LIVE CLOCK
+    LIVE CLOCK
 ========================================================= */
 
 function startLiveClock() {
@@ -2728,167 +2077,100 @@ function startLiveClock() {
 
 function updateLiveClock() {
 
-  const now =
-    new Date();
+  const now = new Date();
 
+  const time = new Intl.DateTimeFormat(
+    undefined,
+    {
+      hour: "numeric",
+      minute: "2-digit",
+      second: undefined
+    }
+  ).format(now);
 
-  const time =
-    new Intl.DateTimeFormat(
-      undefined,
-      {
-        hour:
-          "numeric",
+  const date = new Intl.DateTimeFormat(
+    undefined,
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    }
+  ).format(now);
 
-        minute:
-          "2-digit",
+  const day = new Intl.DateTimeFormat(
+    undefined,
+    {
+      weekday: "long"
+    }
+  ).format(now);
 
-        second:
-          undefined
-      }
-    ).format(now);
-
-
-  const date =
-    new Intl.DateTimeFormat(
-      undefined,
-      {
-        month:
-          "short",
-
-        day:
-          "numeric",
-
-        year:
-          "numeric"
-      }
-    ).format(now);
-
-
-  const day =
-    new Intl.DateTimeFormat(
-      undefined,
-      {
-        weekday:
-          "long"
-      }
-    ).format(now);
-
-
-  const zone =
-    Intl.DateTimeFormat()
-      .resolvedOptions()
-      .timeZone ||
-    "Local time";
-
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local time";
 
   if ($("liveTime")) {
-
-    $("liveTime").textContent =
-      time;
+    $("liveTime").textContent = time;
   }
-
 
   if ($("liveDate")) {
-
-    $("liveDate").textContent =
-      date;
+    $("liveDate").textContent = date;
   }
-
 
   if ($("liveDay")) {
-
-    $("liveDay").textContent =
-      day;
+    $("liveDay").textContent = day;
   }
 
-
   if ($("liveTimeZone")) {
-
-    $("liveTimeZone").textContent =
-      zone
-        .replace(/_/g, " ");
+    $("liveTimeZone").textContent = zone.replace(/_/g, " ");
   }
 }
 
 
 /* =========================================================
-   STATUS
+    STATUS
 ========================================================= */
 
 function updateNovaStatus(
   status
 ) {
 
-  const element =
-    $("novaStatus");
-
+  const element = $("novaStatus");
 
   if (!element) {
     return;
   }
 
+  const normalized = String(status).toUpperCase();
+  element.textContent = normalized;
 
-  const normalized =
-    String(status)
-      .toUpperCase();
-
-
-  element.textContent =
-    normalized;
-
-
-  if (
-    normalized ===
-    "ONLINE"
-  ) {
-
-    element.style.color =
-      "#8ee0a7";
-
+  if (normalized === "ONLINE") {
+    element.style.color = "#8ee0a7";
   } else {
-
-    element.style.color =
-      "var(--accent)";
+    element.style.color = "var(--accent)";
   }
 }
 
 
 /* =========================================================
-   SIDEBAR
+    SIDEBAR
 ========================================================= */
 
 function openMobileSidebar() {
 
-  $("sidebar")
-    .classList
-    .add("open");
-
-  $("sidebarOverlay")
-    .classList
-    .add("open");
-
-  sidebarOpen =
-    true;
+  $("sidebar").classList.add("open");
+  $("sidebarOverlay").classList.add("open");
+  sidebarOpen = true;
 }
 
 
 function closeMobileSidebar() {
 
-  $("sidebar")
-    .classList
-    .remove("open");
-
-  $("sidebarOverlay")
-    .classList
-    .remove("open");
-
-  sidebarOpen =
-    false;
+  $("sidebar").classList.remove("open");
+  $("sidebarOverlay").classList.remove("open");
+  sidebarOpen = false;
 }
 
 
 /* =========================================================
-   MODAL
+    MODAL
 ========================================================= */
 
 function openModal(
@@ -2896,45 +2178,31 @@ function openModal(
   body
 ) {
 
-  $("modalTitle").textContent =
-    title;
-
-  $("modalBody").innerHTML =
-    body;
-
-  $("modal")
-    .classList
-    .remove("hidden");
+  $("modalTitle").textContent = title;
+  $("modalBody").innerHTML = body;
+  $("modal").classList.remove("hidden");
 }
 
 
 function closeModal() {
-
-  $("modal")
-    .classList
-    .add("hidden");
+  $("modal").classList.add("hidden");
 }
 
 
 /* =========================================================
-   SETTINGS
+    SETTINGS
 ========================================================= */
 
 function showSettings() {
 
-  const memoryCount =
-    cachedMemories.length;
-
+  const memoryCount = cachedMemories.length;
 
   openModal(
     "NOVA Settings",
     `
       <p>
         <strong>Account</strong><br>
-        ${escapeHTML(
-          currentUser?.email ||
-          "Signed in"
-        )}
+        ${escapeHTML(currentUser?.email || "Signed in")}
       </p>
 
       <p>
@@ -2944,11 +2212,7 @@ function showSettings() {
 
       <p>
         <strong>Theme</strong><br>
-        ${
-          document.body.classList.contains("light-theme")
-            ? "Light"
-            : "Dark"
-        }
+        ${document.body.classList.contains("light-theme") ? "Light" : "Dark"}
       </p>
 
       <p>
@@ -2961,7 +2225,7 @@ function showSettings() {
 
 
 /* =========================================================
-   HELP
+    HELP
 ========================================================= */
 
 function showHelp() {
@@ -2994,7 +2258,7 @@ function showHelp() {
 
 
 /* =========================================================
-   LOGOUT
+    LOGOUT
 ========================================================= */
 
 async function logout() {
@@ -3003,258 +2267,182 @@ async function logout() {
     return;
   }
 
-
-  await supabaseClient
-    .auth
-    .signOut();
+  await supabaseClient.auth.signOut();
 }
 
 
 /* =========================================================
-   STARTER PROMPTS
+    STARTER PROMPTS
 ========================================================= */
 
 function useStarterPrompt(
   prompt
 ) {
 
-  $("messageInput").value =
-    prompt;
-
-
+  $("messageInput").value = prompt;
   resizeTextarea();
-
-
-  $("messageInput")
-    .focus();
+  $("messageInput").focus();
 }
 
 
 /* =========================================================
-   TEXTAREA
+    TEXTAREA
 ========================================================= */
 
 function resizeTextarea() {
 
-  const textarea =
-    $("messageInput");
+  const textarea = $("messageInput");
 
-
-  textarea.style.height =
-    "auto";
-
-
-  textarea.style.height =
-    Math.min(
-      textarea.scrollHeight,
-      180
-    ) + "px";
+  textarea.style.height = "auto";
+  textarea.style.height = Math.min(
+    textarea.scrollHeight,
+    180
+  ) + "px";
 }
 
 
 /* =========================================================
-   SCROLL
+    SCROLL
 ========================================================= */
 
 function scrollToBottom() {
 
   requestAnimationFrame(
     () => {
-
-      const container =
-        $("chatContainer");
-
-
-      container.scrollTop =
-        container.scrollHeight;
+      const container = $("chatContainer");
+      container.scrollTop = container.scrollHeight;
     }
   );
 }
 
 
 /* =========================================================
-   ESCAPE HTML FOR MODALS
+    ESCAPE HTML FOR MODALS
 ========================================================= */
 
 function escapeHTML(
   value
 ) {
 
-  const div =
-    document.createElement(
-      "div"
-    );
-
-
-  div.textContent =
-    String(value);
-
-
+  const div = document.createElement("div");
+  div.textContent = String(value);
   return div.innerHTML;
 }
 
 
 /* =========================================================
-   STATIC EVENTS
+    STATIC EVENTS
 ========================================================= */
 
 function setupStaticEvents() {
 
-  $("authForm")
-    ?.addEventListener(
-      "submit",
-      handleAuthSubmit
-    );
+  $("authForm")?.addEventListener(
+    "submit",
+    handleAuthSubmit
+  );
 
+  $("authSwitch")?.addEventListener(
+    "click",
+    () => {
+      setupAuthMode(
+        authMode === "signin"
+          ? "signup"
+          : "signin"
+      );
+    }
+  );
 
-  $("authSwitch")
-    ?.addEventListener(
-      "click",
-      () => {
+  $("sendBtn")?.addEventListener(
+    "click",
+    () => sendMessage()
+  );
 
-        setupAuthMode(
-          authMode === "signin"
-            ? "signup"
-            : "signin"
-        );
+  $("newChatBtn")?.addEventListener(
+    "click",
+    newChat
+  );
+
+  $("themeToggle")?.addEventListener(
+    "click",
+    toggleTheme
+  );
+
+  $("menuBtn")?.addEventListener(
+    "click",
+    openMobileSidebar
+  );
+
+  $("sidebarCloseBtn")?.addEventListener(
+    "click",
+    closeMobileSidebar
+  );
+
+  $("sidebarOverlay")?.addEventListener(
+    "click",
+    closeMobileSidebar
+  );
+
+  $("settingsBtn")?.addEventListener(
+    "click",
+    showSettings
+  );
+
+  $("helpBtn")?.addEventListener(
+    "click",
+    showHelp
+  );
+
+  $("logoutBtn")?.addEventListener(
+    "click",
+    logout
+  );
+
+  $("modalClose")?.addEventListener(
+    "click",
+    closeModal
+  );
+
+  $("modalOverlay")?.addEventListener(
+    "click",
+    closeModal
+  );
+
+  $("messageInput")?.addEventListener(
+    "input",
+    resizeTextarea
+  );
+
+  $("messageInput")?.addEventListener(
+    "keydown",
+    event => {
+      if (
+        event.key === "Enter" &&
+        !event.shiftKey
+      ) {
+        event.preventDefault();
+        sendMessage();
       }
-    );
+    }
+  );
 
-
-  $("sendBtn")
-    ?.addEventListener(
-      "click",
-      () => sendMessage()
-    );
-
-
-  $("newChatBtn")
-    ?.addEventListener(
-      "click",
-      newChat
-    );
-
-
-  $("themeToggle")
-    ?.addEventListener(
-      "click",
-      toggleTheme
-    );
-
-
-  $("menuBtn")
-    ?.addEventListener(
-      "click",
-      openMobileSidebar
-    );
-
-
-  $("sidebarCloseBtn")
-    ?.addEventListener(
-      "click",
-      closeMobileSidebar
-    );
-
-
-  $("sidebarOverlay")
-    ?.addEventListener(
-      "click",
-      closeMobileSidebar
-    );
-
-
-  $("settingsBtn")
-    ?.addEventListener(
-      "click",
-      showSettings
-    );
-
-
-  $("helpBtn")
-    ?.addEventListener(
-      "click",
-      showHelp
-    );
-
-
-  $("logoutBtn")
-    ?.addEventListener(
-      "click",
-      logout
-    );
-
-
-  $("modalClose")
-    ?.addEventListener(
-      "click",
-      closeModal
-    );
-
-
-  $("modalOverlay")
-    ?.addEventListener(
-      "click",
-      closeModal
-    );
-
-
-  $("messageInput")
-    ?.addEventListener(
-      "input",
-      resizeTextarea
-    );
-
-
-  $("messageInput")
-    ?.addEventListener(
-      "keydown",
-      event => {
-
-        if (
-          event.key === "Enter" &&
-          !event.shiftKey
-        ) {
-
-          event.preventDefault();
-
-          sendMessage();
+  qsa(".starter-card").forEach(
+    card => {
+      card.addEventListener(
+        "click",
+        () => {
+          useStarterPrompt(
+            card.dataset.prompt || ""
+          );
         }
-      }
-    );
-
-
-  qsa(".starter-card")
-    .forEach(
-      card => {
-
-        card.addEventListener(
-          "click",
-          () => {
-
-            useStarterPrompt(
-              card.dataset.prompt ||
-              ""
-            );
-          }
-        );
-      }
-    );
-
-
-  /*
-    Escape closes modal/sidebar.
-  */
+      );
+    }
+  );
 
   document.addEventListener(
     "keydown",
     event => {
-
-      if (
-        event.key === "Escape"
-      ) {
-
+      if (event.key === "Escape") {
         closeModal();
-
         closeMobileSidebar();
       }
     }
@@ -3263,24 +2451,14 @@ function setupStaticEvents() {
 
 
 /* =========================================================
-   EXPOSE OPTIONAL DEBUG API
+    EXPOSE OPTIONAL DEBUG API
 ========================================================= */
 
 window.NOVA = {
-
-  getUser: () =>
-    currentUser,
-
-  getConversationId: () =>
-    currentConversationId,
-
-  getMessages: () =>
-    [...currentConversationMessages],
-
+  getUser: () => currentUser,
+  getConversationId: () => currentConversationId,
+  getMessages: () => [...currentConversationMessages],
   newChat,
-
   sendMessage,
-
   toggleTheme
-
 };
