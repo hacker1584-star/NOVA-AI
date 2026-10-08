@@ -1,6 +1,7 @@
 /* =========================================
-   NOVA AI — V3 FRONTEND
-   ========================================= */
+   NOVA AI — V4 FRONTEND
+   Major Tool-Ready Architecture
+========================================= */
 
 
 /* =========================================
@@ -120,6 +121,14 @@ let authMode = "login";
 let isGenerating = false;
 
 
+/*
+ * Prevents duplicate initialization when
+ * Supabase fires multiple auth events.
+ */
+
+let novaInitialized = false;
+
+
 /* =========================================
    SUPABASE
 ========================================= */
@@ -224,6 +233,8 @@ async function initializeSupabase() {
 
                     currentConversationMessages = [];
 
+                    novaInitialized = false;
+
                     showAuthScreen();
 
                 }
@@ -255,22 +266,31 @@ function showAuthScreen() {
 
     if (!authScreen) return;
 
-    authScreen.style.display = "flex";
+    authScreen.style.display =
+        "flex";
+
 }
+
 
 function hideAuthScreen() {
 
     if (!authScreen) return;
 
-    authScreen.style.display = "none";
+    authScreen.style.display =
+        "none";
+
 }
+
 
 function setAuthMessage(message) {
 
     if (authMessage) {
+
         authMessage.textContent =
             message || "";
+
     }
+
 }
 
 
@@ -280,9 +300,11 @@ function setAuthMessage(message) {
 
 function updateAuthMode() {
 
-    if (!authNameField ||
+    if (
+        !authNameField ||
         !authSwitch ||
-        !authSubmit) {
+        !authSubmit
+    ) {
         return;
     }
 
@@ -313,7 +335,9 @@ function updateAuthMode() {
 
     }
 
+
     setAuthMessage("");
+
 }
 
 
@@ -344,13 +368,17 @@ if (authForm) {
 
             event.preventDefault();
 
+
             if (!supabaseReady) {
+
                 setAuthMessage(
                     "NOVA is still connecting..."
                 );
 
                 return;
+
             }
+
 
             const email =
                 authEmail.value.trim();
@@ -363,15 +391,19 @@ if (authForm) {
 
 
             if (!email || !password) {
+
                 setAuthMessage(
                     "Enter your email and password."
                 );
 
                 return;
+
             }
 
 
-            authSubmit.disabled = true;
+            authSubmit.disabled =
+                true;
+
 
             setAuthMessage(
                 authMode === "signup"
@@ -395,7 +427,8 @@ if (authForm) {
                             options: {
                                 data: {
                                     display_name:
-                                        name || "NOVA User"
+                                        name ||
+                                        "NOVA User"
                                 }
                             }
                         });
@@ -537,15 +570,6 @@ async function loadUserData() {
             memoryData || [];
 
 
-        /*
-         * IMPORTANT:
-         *
-         * Do NOT automatically open the newest
-         * conversation when NOVA starts.
-         *
-         * NOVA always starts as a clean workspace.
-         */
-
         currentConversationId =
             null;
 
@@ -621,6 +645,15 @@ async function ensureProfile() {
 
 function initializeNOVA() {
 
+    if (novaInitialized) {
+        return;
+    }
+
+
+    novaInitialized =
+        true;
+
+
     loadTheme();
 
     renderConversationList();
@@ -631,6 +664,11 @@ function initializeNOVA() {
 
     messageInput?.focus();
 
+
+    console.log(
+        "NOVA V4 initialized."
+    );
+
 }
 
 
@@ -640,17 +678,22 @@ function initializeNOVA() {
 
 function renderConversationList() {
 
-    if (!conversationList) return;
+    if (!conversationList) {
+        return;
+    }
 
 
-    conversationList.innerHTML = "";
+    conversationList.innerHTML =
+        "";
 
 
     if (!conversations.length) {
 
         if (emptyConversations) {
+
             emptyConversations.style.display =
                 "block";
+
         }
 
         return;
@@ -659,8 +702,10 @@ function renderConversationList() {
 
 
     if (emptyConversations) {
+
         emptyConversations.style.display =
             "none";
+
     }
 
 
@@ -672,6 +717,7 @@ function renderConversationList() {
                     "button"
                 );
 
+
             button.className =
                 "conversation-item";
 
@@ -680,9 +726,11 @@ function renderConversationList() {
                 conversation.id ===
                 currentConversationId
             ) {
+
                 button.classList.add(
                     "active"
                 );
+
             }
 
 
@@ -753,7 +801,8 @@ async function createConversation(
                     currentUser.id,
 
                 title:
-                    title || "New chat"
+                    title ||
+                    "New chat"
             })
             .select()
             .single();
@@ -786,7 +835,9 @@ async function loadConversation(
     conversationId
 ) {
 
-    if (!currentUser) return;
+    if (!currentUser) {
+        return;
+    }
 
 
     try {
@@ -909,6 +960,7 @@ async function saveMessageToSupabase(
         );
 
         return null;
+
     }
 
 
@@ -925,7 +977,13 @@ async function updateConversationTimestamp(
     conversationId
 ) {
 
-    if (!conversationId) return;
+    if (!conversationId || !currentUser) {
+        return;
+    }
+
+
+    const timestamp =
+        new Date().toISOString();
 
 
     const {
@@ -935,7 +993,7 @@ async function updateConversationTimestamp(
             .from("conversations")
             .update({
                 updated_at:
-                    new Date().toISOString()
+                    timestamp
             })
             .eq(
                 "id",
@@ -948,10 +1006,12 @@ async function updateConversationTimestamp(
 
 
     if (error) {
+
         console.warn(
             "Conversation timestamp:",
             error
         );
+
     }
 
 
@@ -966,7 +1026,8 @@ async function updateConversationTimestamp(
     if (index !== -1) {
 
         conversations[index].updated_at =
-            new Date().toISOString();
+            timestamp;
+
 
         conversations.sort(
             (a, b) =>
@@ -1014,27 +1075,32 @@ async function sendMessage(
     }
 
 
-    isGenerating = true;
+    isGenerating =
+        true;
 
-    sendBtn.disabled = true;
+
+    sendBtn.disabled =
+        true;
 
 
     if (messageInput) {
-        messageInput.value = "";
+
+        messageInput.value =
+            "";
 
         autoResizeTextarea();
+
     }
 
 
     hideWelcome();
 
 
-    /*
-     * Create a conversation only when
-     * the user actually sends something.
-     */
-
     try {
+
+        /*
+         * Create conversation first.
+         */
 
         if (!currentConversationId) {
 
@@ -1043,15 +1109,28 @@ async function sendMessage(
                     text
                 );
 
-            currentConversationId =
-                conversation.id;
+
+            if (!conversation) {
+
+                throw new Error(
+                    "Could not create conversation."
+                );
+
+            }
 
         }
 
 
+        /*
+         * Add user message.
+         */
+
         currentConversationMessages.push({
-            role: "user",
-            content: text
+            role:
+                "user",
+
+            content:
+                text
         });
 
 
@@ -1072,6 +1151,17 @@ async function sendMessage(
             currentConversationId
         );
 
+
+        /*
+         * Detect memory.
+         */
+
+        await detectMemory(text);
+
+
+        /*
+         * Generate answer.
+         */
 
         showLoading();
 
@@ -1086,8 +1176,11 @@ async function sendMessage(
 
 
         currentConversationMessages.push({
-            role: "ai",
-            content: aiText
+            role:
+                "ai",
+
+            content:
+                aiText
         });
 
 
@@ -1109,12 +1202,10 @@ async function sendMessage(
         );
 
 
-        detectMemory(text);
-
-
     } catch (error) {
 
         hideLoading();
+
 
         console.error(
             "NOVA message error:",
@@ -1124,14 +1215,16 @@ async function sendMessage(
 
         addMessageToScreen(
             "ai",
-            "I couldn't generate a response right now. Please try again."
+            `I couldn't complete that request.\n\n${error.message || "Please try again."}`
         );
 
     } finally {
 
-        isGenerating = false;
+        isGenerating =
+            false;
 
-        sendBtn.disabled = false;
+        sendBtn.disabled =
+            false;
 
         messageInput?.focus();
 
@@ -1151,6 +1244,7 @@ async function generateAIResponse(
     const messagesForAI =
         conversationMessages.map(
             (message) => ({
+
                 role:
                     message.role === "ai"
                         ? "assistant"
@@ -1158,6 +1252,7 @@ async function generateAIResponse(
 
                 content:
                     message.content
+
             })
         );
 
@@ -1169,10 +1264,17 @@ async function generateAIResponse(
     if (memoryContext) {
 
         messagesForAI.unshift({
-            role: "system",
+
+            role:
+                "system",
 
             content:
-                `Relevant memory about the user:\n${memoryContext}`
+                `Relevant long-term memory about the user:
+
+${memoryContext}
+
+Use this information only when it is relevant. Do not mention that memory was injected unless useful to the conversation.`
+
         });
 
     }
@@ -1182,47 +1284,70 @@ async function generateAIResponse(
         await fetch(
             "/api/chat",
             {
-                method: "POST",
+
+                method:
+                    "POST",
 
                 headers: {
+
                     "Content-Type":
                         "application/json"
+
                 },
 
                 body:
                     JSON.stringify({
+
                         messages:
                             messagesForAI
+
                     })
+
             }
         );
 
 
-    const data =
-        await response.json();
+    let data = null;
+
+
+    try {
+
+        data =
+            await response.json();
+
+    } catch {
+
+        throw new Error(
+            "NOVA received an invalid server response."
+        );
+
+    }
 
 
     if (!response.ok) {
 
         throw new Error(
-            data.error ||
+            data?.error ||
             "AI request failed."
         );
 
     }
 
 
-    /*
-     * Support the backend response format
-     * and older formats.
-     */
-
     const aiText =
-        data.answer ||
-        data.reply ||
-        data.message ||
-        data.content ||
-        "I couldn't generate a response.";
+        data?.answer ||
+        data?.reply ||
+        data?.message ||
+        data?.content;
+
+
+    if (!aiText) {
+
+        throw new Error(
+            "NOVA returned an empty response."
+        );
+
+    }
 
 
     return aiText;
@@ -1299,6 +1424,7 @@ function addMessageToScreen(
         roleLabel
     );
 
+
     bubble.appendChild(
         text
     );
@@ -1325,6 +1451,7 @@ function addMessageToScreen(
         copyButton.className =
             "message-action";
 
+
         copyButton.textContent =
             "Copy";
 
@@ -1339,13 +1466,17 @@ function addMessageToScreen(
                         content
                     );
 
+
                     copyButton.textContent =
                         "Copied";
 
+
                     setTimeout(
                         () => {
+
                             copyButton.textContent =
                                 "Copy";
+
                         },
                         1200
                     );
@@ -1372,6 +1503,7 @@ function addMessageToScreen(
         regenerateButton.className =
             "message-action";
 
+
         regenerateButton.textContent =
             "↻ Regenerate";
 
@@ -1389,6 +1521,7 @@ function addMessageToScreen(
         actions.appendChild(
             copyButton
         );
+
 
         actions.appendChild(
             regenerateButton
@@ -1420,7 +1553,7 @@ function addMessageToScreen(
 
 
 /* =========================================
-   REGENERATE RESPONSE
+   REGENERATE
 ========================================= */
 
 async function regenerateLastResponse() {
@@ -1440,11 +1573,6 @@ async function regenerateLastResponse() {
         ];
 
 
-    /*
-     * Only regenerate if the latest
-     * message is from NOVA.
-     */
-
     if (
         !lastMessage ||
         lastMessage.role !== "ai"
@@ -1453,24 +1581,18 @@ async function regenerateLastResponse() {
     }
 
 
-    isGenerating = true;
+    isGenerating =
+        true;
 
-    sendBtn.disabled = true;
+
+    sendBtn.disabled =
+        true;
 
 
     try {
 
-        /*
-         * Remove the old AI message
-         * from local state.
-         */
-
         currentConversationMessages.pop();
 
-
-        /*
-         * Remove the visible last AI bubble.
-         */
 
         const aiMessages =
             messagesContainer.querySelectorAll(
@@ -1488,32 +1610,53 @@ async function regenerateLastResponse() {
 
 
         /*
-         * Remove the previous AI message
-         * from Supabase.
+         * Remove the latest AI message
+         * safely using the latest message row.
          */
 
-        await supabaseClient
-            .from("messages")
-            .delete()
-            .eq(
-                "conversation_id",
-                currentConversationId
-            )
-            .eq(
-                "user_id",
-                currentUser.id
-            )
-            .eq(
-                "role",
-                "ai"
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            )
-            .limit(1);
+        const {
+            data: latestAI,
+            error: latestError
+        } =
+            await supabaseClient
+                .from("messages")
+                .select("id")
+                .eq(
+                    "conversation_id",
+                    currentConversationId
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                )
+                .eq(
+                    "role",
+                    "ai"
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                )
+                .limit(1);
+
+
+        if (!latestError && latestAI?.[0]?.id) {
+
+            await supabaseClient
+                .from("messages")
+                .delete()
+                .eq(
+                    "id",
+                    latestAI[0].id
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                );
+
+        }
 
 
         showLoading();
@@ -1529,8 +1672,13 @@ async function regenerateLastResponse() {
 
 
         currentConversationMessages.push({
-            role: "ai",
-            content: aiText
+
+            role:
+                "ai",
+
+            content:
+                aiText
+
         });
 
 
@@ -1556,6 +1704,7 @@ async function regenerateLastResponse() {
 
         hideLoading();
 
+
         console.error(
             "Regeneration error:",
             error
@@ -1569,9 +1718,11 @@ async function regenerateLastResponse() {
 
     } finally {
 
-        isGenerating = false;
+        isGenerating =
+            false;
 
-        sendBtn.disabled = false;
+        sendBtn.disabled =
+            false;
 
     }
 
@@ -1595,6 +1746,7 @@ function showLoading() {
 
     loading.id =
         "novaLoading";
+
 
     loading.className =
         "nova-loading";
@@ -1620,9 +1772,14 @@ function showLoading() {
         "NOVA is thinking…";
 
 
-    loading.appendChild(dot);
+    loading.appendChild(
+        dot
+    );
 
-    loading.appendChild(text);
+
+    loading.appendChild(
+        text
+    );
 
 
     messagesContainer.appendChild(
@@ -1657,16 +1814,22 @@ function hideLoading() {
 function clearMessages() {
 
     if (messagesContainer) {
-        messagesContainer.innerHTML = "";
+
+        messagesContainer.innerHTML =
+            "";
+
     }
 
 
-    currentConversationMessages = [];
+    currentConversationMessages =
+        [];
 
 
     if (welcomeScreen) {
+
         welcomeScreen.style.display =
             "block";
+
     }
 
 }
@@ -1691,15 +1854,9 @@ if (newChatBtn) {
             }
 
 
-            /*
-             * New chat does NOT create an empty
-             * database conversation.
-             *
-             * It only creates a clean workspace.
-             */
-
             currentConversationId =
                 null;
+
 
             currentConversationMessages =
                 [];
@@ -1707,7 +1864,9 @@ if (newChatBtn) {
 
             clearMessages();
 
+
             closeMobileSidebar();
+
 
             messageInput?.focus();
 
@@ -1734,7 +1893,11 @@ starterCards.forEach(
 
 
                 if (prompt) {
-                    sendMessage(prompt);
+
+                    sendMessage(
+                        prompt
+                    );
+
                 }
 
             }
@@ -1745,14 +1908,16 @@ starterCards.forEach(
 
 
 /* =========================================
-   HIDE WELCOME
+   WELCOME
 ========================================= */
 
 function hideWelcome() {
 
     if (welcomeScreen) {
+
         welcomeScreen.style.display =
             "none";
+
     }
 
 }
@@ -1839,7 +2004,9 @@ if (sendBtn) {
     sendBtn.addEventListener(
         "click",
         () => {
+
             sendMessage();
+
         }
     );
 
@@ -1856,11 +2023,12 @@ if (menuBtn) {
         "click",
         () => {
 
-            sidebar.classList.toggle(
+            sidebar?.classList.toggle(
                 "open"
             );
 
-            sidebarOverlay.classList.toggle(
+
+            sidebarOverlay?.classList.toggle(
                 "active"
             );
 
@@ -1885,6 +2053,7 @@ function closeMobileSidebar() {
     sidebar?.classList.remove(
         "open"
     );
+
 
     sidebarOverlay?.classList.remove(
         "active"
@@ -1911,7 +2080,10 @@ function loadTheme() {
             "light-theme"
         );
 
-        updateThemeIcon(true);
+
+        updateThemeIcon(
+            true
+        );
 
     } else {
 
@@ -1919,7 +2091,10 @@ function loadTheme() {
             "light-theme"
         );
 
-        updateThemeIcon(false);
+
+        updateThemeIcon(
+            false
+        );
 
     }
 
@@ -1997,7 +2172,9 @@ function getMemoryContext() {
 }
 
 
-async function detectMemory(text) {
+async function detectMemory(
+    text
+) {
 
     if (
         !supabaseClient ||
@@ -2026,7 +2203,8 @@ async function detectMemory(text) {
     ];
 
 
-    let memoryText = null;
+    let memoryText =
+        null;
 
 
     for (
@@ -2077,11 +2255,13 @@ async function detectMemory(text) {
         await supabaseClient
             .from("memories")
             .insert({
+
                 user_id:
                     currentUser.id,
 
                 content:
                     memoryText
+
             })
             .select()
             .single();
@@ -2095,11 +2275,16 @@ async function detectMemory(text) {
         );
 
         return;
+
     }
 
 
     if (data) {
-        novaMemories.push(data);
+
+        novaMemories.push(
+            data
+        );
+
     }
 
 }
@@ -2125,6 +2310,7 @@ if (settingsBtn) {
 
 
             openModal(`
+
                 <h2>Settings</h2>
 
                 <p>
@@ -2133,17 +2319,30 @@ if (settingsBtn) {
 
                 <div class="modal-row">
                     <span>Account</span>
-                    <strong>${escapeHTML(email)}</strong>
+                    <strong>
+                        ${escapeHTML(email)}
+                    </strong>
                 </div>
 
                 <div class="modal-row">
                     <span>Conversations</span>
-                    <strong>${conversations.length}</strong>
+                    <strong>
+                        ${conversations.length}
+                    </strong>
                 </div>
 
                 <div class="modal-row">
                     <span>Memories</span>
-                    <strong>${memoryCount}</strong>
+                    <strong>
+                        ${memoryCount}
+                    </strong>
+                </div>
+
+                <div class="modal-row">
+                    <span>AI Tools</span>
+                    <strong>
+                        Web + Research
+                    </strong>
                 </div>
 
                 <div class="modal-row">
@@ -2153,12 +2352,14 @@ if (settingsBtn) {
                             document.body.classList.contains(
                                 "light-theme"
                             )
-                            ? "Light"
-                            : "Dark"
+                                ? "Light"
+                                : "Dark"
                         }
                     </strong>
                 </div>
+
             `);
+
 
             closeMobileSidebar();
 
@@ -2179,31 +2380,35 @@ if (helpBtn) {
         () => {
 
             openModal(`
+
                 <h2>About NOVA</h2>
 
                 <p>
                     NOVA is your AI workspace for
-                    asking questions, learning,
-                    creating, coding, analyzing
-                    problems and developing ideas.
+                    questions, learning, coding,
+                    research, analysis, writing
+                    and project development.
                 </p>
 
                 <br>
 
                 <p>
-                    Start a new conversation,
-                    choose an earlier conversation
-                    from the sidebar, or use one of
-                    the starter prompts.
+                    NOVA can now use server-side AI
+                    tools when appropriate, including
+                    live web research and webpage
+                    fetching.
                 </p>
 
                 <br>
 
                 <p>
-                    You can also copy or regenerate
-                    NOVA's responses.
+                    Start a conversation and ask NOVA
+                    naturally. You do not need to
+                    manually select a tool.
                 </p>
+
             `);
+
 
             closeMobileSidebar();
 
@@ -2251,10 +2456,14 @@ if (logoutBtn) {
    MODAL
 ========================================= */
 
-function openModal(content) {
+function openModal(
+    content
+) {
 
-    if (!modalOverlay ||
-        !modalContent) {
+    if (
+        !modalOverlay ||
+        !modalContent
+    ) {
         return;
     }
 
@@ -2319,22 +2528,27 @@ function escapeHTML(
 ) {
 
     return String(value)
+
         .replace(
             /&/g,
             "&amp;"
         )
+
         .replace(
             /</g,
             "&lt;"
         )
+
         .replace(
             />/g,
             "&gt;"
         )
+
         .replace(
             /"/g,
             "&quot;"
         )
+
         .replace(
             /'/g,
             "&#039;"
@@ -2369,66 +2583,79 @@ function showConfigError(
 
 }
 
+
 /* =========================================
-   NOVA LOCAL TOOL HANDLER
+   LOCAL TOOL COMPATIBILITY
 ========================================= */
 
-async function handleNovaLocalTool(userText) {
+/*
+ * If nova/tools.js is still loaded from
+ * index.html, NOVA can use it.
+ *
+ * The important difference from the previous
+ * version is that local tools are handled BEFORE
+ * the AI request only when a valid result exists.
+ */
 
-  if (
-    typeof novaRunToolFromMessage !== "function"
-  ) {
-    return false;
-  }
+async function tryLocalTool(
+    userText
+) {
 
+    if (
+        typeof novaRunToolFromMessage !==
+        "function"
+    ) {
 
-  const result =
-    novaRunToolFromMessage(
-      userText
-    );
+        return null;
 
-
-  if (!result) {
-    return false;
-  }
-
-
-  const answer =
-    novaFormatToolResult(
-      result
-    );
+    }
 
 
-  if (!answer) {
-    return false;
-  }
+    try {
+
+        const result =
+            novaRunToolFromMessage(
+                userText
+            );
 
 
-  /* Show result in chat */
-
-  addMessage(
-    "ai",
-    answer
-  );
+        if (!result) {
+            return null;
+        }
 
 
-  /* Save result */
+        const answer =
+            typeof novaFormatToolResult ===
+            "function"
 
-  if (
-    currentConversationId
-  ) {
+                ? novaFormatToolResult(
+                    result
+                )
 
-    await saveMessageToSupabase(
-      currentConversationId,
-      "ai",
-      answer
-    );
-
-  }
+                : null;
 
 
-  return true;
+        if (!answer) {
+            return null;
+        }
+
+
+        return answer;
+
+    } catch (error) {
+
+        console.warn(
+            "Local tool failed:",
+            error
+        );
+
+
+        return null;
+
+    }
+
 }
+
 
 /* =========================================
    START
