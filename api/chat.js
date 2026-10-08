@@ -1,22 +1,32 @@
 /* =========================================================
-   NOVA AI — CHAT API
-   Current OpenRouter server-tool architecture
+    NOVA AI — CHAT API
+    Current OpenRouter server-tool architecture
 ========================================================= */
 
-const MODEL = "openrouter/free";
+const MODEL = process.env.OPENROUTER_MODEL || "openrouter/free";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const TIMEOUT_MS = 30000;
 
-const OPENROUTER_URL =
-  "https://openrouter.ai/api/v1/chat/completions";
+function normalizeOpenRouterRole(role) {
+  const value = String(role || "").trim().toLowerCase();
 
+  if (value === "assistant" || value === "ai") {
+    return "assistant";
+  }
+
+  if (value === "user" || value === "system") {
+    return value;
+  }
+
+  return "user";
+}
 
 function cleanMessages(messages) {
-
   if (!Array.isArray(messages)) {
     return [];
   }
 
   return messages
-
     .filter(
       message =>
         message &&
@@ -28,30 +38,16 @@ function cleanMessages(messages) {
           message.role === "system"
         )
     )
-
     .map(message => ({
-
-      role:
-        message.role === "ai"
-          ? "assistant"
-          : message.role,
-
-      content:
-        message.content.slice(0, 20000)
-
+      role: normalizeOpenRouterRole(message.role),
+      content: message.content.slice(0, 20000).trim()
     }))
-
+    .filter(message => message.content.length > 0)
     .slice(-40);
 }
 
-
-function buildSystemPrompt({
-  researchMode
-}) {
-
-  const now =
-    new Date().toISOString();
-
+function buildSystemPrompt({ researchMode }) {
+  const now = new Date().toISOString();
 
   return `
 You are NOVA, an advanced AI assistant.
@@ -127,269 +123,156 @@ ${researchMode ? "The user explicitly requires current web-grounded research. Us
 `;
 }
 
-
 function extractAnswer(data) {
+  const answer = data?.choices?.[0]?.message?.content;
 
-  const answer =
-    data?.choices?.[0]?.message?.content;
-
-  if (
-    typeof answer === "string" &&
-    answer.trim()
-  ) {
+  if (typeof answer === "string" && answer.trim()) {
     return answer.trim();
   }
 
   return "";
 }
 
-
 export default async function handler(req, res) {
-
   if (req.method !== "POST") {
-
     return res.status(405).json({
+      success: false,
       error: "Method not allowed"
     });
   }
 
-
   try {
+    if (!process.env.OPENROUTER_API_KEY) {
+      console.error("OPENROUTER_API_KEY is missing.");
 
-    if (
-      !process.env.OPENROUTER_API_KEY
-    ) {
-
-      console.error(
-        "OPENROUTER_API_KEY is missing."
-      );
-
-      return res.status(500).json({
-        error:
-          "NOVA AI service is not configured."
+      return res.status(503).json({
+        success: false,
+        error: "NOVA AI service is not configured."
       });
     }
 
-
-    const body =
-      req.body || {};
-
-
-    const messages =
-      cleanMessages(
-        body.messages
-      );
-
-
-    const researchMode =
-      Boolean(
-        body.researchMode
-      );
-
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const messages = cleanMessages(body.messages);
+    const researchMode = Boolean(body.researchMode);
 
     if (!messages.length) {
-
       return res.status(400).json({
-        error:
-          "At least one message is required."
+        success: false,
+        error: "At least one valid message is required."
       });
     }
-
 
     const tools = [
-
       {
-        type:
-          "openrouter:web_search",
-
+        type: "openrouter:web_search",
         parameters: {
-
           max_results: 6,
-
           max_total_results: 15
-
         }
       },
-
-
       {
-        type:
-          "openrouter:web_fetch",
-
+        type: "openrouter:web_fetch",
         parameters: {
-
-          engine:
-            "openrouter",
-
-          max_content_tokens:
-            30000
-
+          engine: "openrouter",
+          max_content_tokens: 30000
         }
       },
-
-
       {
-        type:
-          "openrouter:datetime"
+        type: "openrouter:datetime"
       }
-
     ];
 
-
     const requestBody = {
-
       model: MODEL,
-
       messages: [
-
         {
-          role:
-            "system",
-
-          content:
-            buildSystemPrompt({
-              researchMode
-            })
+          role: "system",
+          content: buildSystemPrompt({ researchMode })
         },
-
         ...messages
-
       ],
-
       tools,
-
-      temperature:
-        0.3,
-
-      max_tokens:
-        5000
-
+      temperature: 0.3,
+      max_tokens: 5000
     };
 
-
-    /*
-      For explicit research requests, require a tool call.
-
-      This makes "latest/current/research" requests
-      much less likely to be answered from stale model knowledge.
-    */
-
     if (researchMode) {
-
-      requestBody.tool_choice =
-        "required";
+      requestBody.tool_choice = "required";
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    const response =
-      await fetch(
-        OPENROUTER_URL,
-        {
-          method:
-            "POST",
+    let response;
+    try {
+      response = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://nova-ai039.vercel.app",
+          "X-Title": "NOVA AI"
+        },
+        body: JSON.stringify(requestBody)
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
-          headers: {
+    console.log("OpenRouter status:", response.status);
 
-            Authorization:
-              `Bearer ${process.env.OPENROUTER_API_KEY}`,
+    let data = null;
 
-            "Content-Type":
-              "application/json",
-
-            "HTTP-Referer":
-              "https://nova-ai039.vercel.app",
-
-            "X-Title":
-              "NOVA AI"
-
-          },
-
-          body:
-            JSON.stringify(
-              requestBody
-            )
-        }
-      );
-
-
-    console.log(
-      "OpenRouter status:",
-      response.status
-    );
-
-
-    const data =
-      await response.json();
-
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      console.error("OpenRouter returned invalid JSON:", jsonError);
+      return res.status(502).json({
+        success: false,
+        error: "NOVA received an invalid response from the AI service."
+      });
+    }
 
     if (!response.ok) {
+      console.error("OpenRouter error:", JSON.stringify(data));
 
-      console.error(
-        "OpenRouter error:",
-        JSON.stringify(data)
-      );
-
-
-      return res.status(
-        response.status
-      ).json({
-
-        error:
-          data?.error?.message ||
-          "OpenRouter returned an error."
-
+      return res.status(response.status).json({
+        success: false,
+        error: data?.error?.message || "OpenRouter returned an error."
       });
     }
 
-
-    const answer =
-      extractAnswer(data);
-
+    const answer = extractAnswer(data);
 
     if (!answer) {
-
-      console.error(
-        "OpenRouter returned no text answer:",
-        JSON.stringify(data)
-      );
-
+      console.error("OpenRouter returned no text answer:", JSON.stringify(data));
 
       return res.status(502).json({
-
-        error:
-          "NOVA received no usable answer from the AI service."
-
+        success: false,
+        error: "NOVA received no usable answer from the AI service."
       });
     }
 
-
     return res.status(200).json({
-
+      success: true,
       answer,
-
-      model:
-        data?.model ||
-        MODEL,
-
-      researched:
-        researchMode
-
+      model: data?.model || MODEL,
+      researched: researchMode
     });
-
-
   } catch (error) {
+    console.error("NOVA backend error:", error);
 
-    console.error(
-      "NOVA backend error:",
-      error
-    );
-
+    if (error?.name === "AbortError") {
+      return res.status(504).json({
+        success: false,
+        error: "The AI service timed out. Please try again."
+      });
+    }
 
     return res.status(500).json({
-
-      error:
-        "NOVA could not connect to the AI service."
-
+      success: false,
+      error: "NOVA could not connect to the AI service."
     });
   }
 }
