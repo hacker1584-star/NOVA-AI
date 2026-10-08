@@ -1,9 +1,220 @@
-  <!-- NOVA LOCAL TOOLS -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NOVA AI</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- AUTH SCREEN -->
+    <section id="authScreen" class="auth-screen">
+      <div class="auth-container">
+        <div class="auth-logo">✦ NOVA</div>
+        <h1 id="authTitle">Welcome back</h1>
+        <p id="authSubtitle">Sign in to continue</p>
 
-  <script src="nova/tools.js"></script>
-  <script src="nova/production-guard.js"></script>
-  <script src="nova/final-stage.js"></script>
+        <form id="authForm" class="auth-form">
+          <div id="authNameField" class="form-group hidden">
+            <label for="authName">Name</label>
+            <input
+              id="authName"
+              type="text"
+              placeholder="Your name"
+              autocomplete="name"
+            />
+          </div>
 
-  <!-- MAIN APP -->
+          <div class="form-group">
+            <label for="authEmail">Email</label>
+            <input
+              id="authEmail"
+              type="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+            />
+          </div>
 
-  <script src="script.js"></script>
+          <div class="form-group">
+            <label for="authPassword">Password</label>
+            <input
+              id="authPassword"
+              type="password"
+              placeholder="Your password"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <span id="authButtonText">Sign in</span>
+          </button>
+
+          <div id="authMessage" class="auth-message"></div>
+        </form>
+
+        <button id="authSwitch" class="btn btn-link">
+          <span id="authSwitchText">Create an account</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- APP SCREEN -->
+    <div id="app" class="app hidden">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">✦ NOVA</div>
+          <button id="sidebarToggle" class="btn-icon mobile-only">
+            <span>✕</span>
+          </button>
+        </div>
+
+        <button id="newChatBtn" class="btn btn-new-chat">
+          <span>+</span> New Chat
+        </button>
+
+        <div class="sidebar-section">
+          <div class="sidebar-label">RECENT</div>
+          <div id="conversationList" class="conversation-list"></div>
+          <div id="emptyState" class="empty-state">No conversations yet</div>
+        </div>
+
+        <div class="sidebar-footer">
+          <button id="settingsBtn" class="btn-nav">
+            <span>⚙</span> Settings
+          </button>
+          <button id="helpBtn" class="btn-nav">
+            <span>?</span> Help
+          </button>
+          <button id="logoutBtn" class="btn-nav danger">
+            <span>↪</span> Log out
+          </button>
+        </div>
+      </aside>
+
+      <!-- SIDEBAR OVERLAY (mobile) -->
+      <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+      <!-- MAIN CONTENT -->
+      <main class="main-content">
+        <header class="topbar">
+          <button id="menuBtn" class="btn-icon mobile-only">
+            <span>☰</span>
+          </button>
+          <div class="topbar-center">
+            <span class="status-dot"></span>
+            <span>NOVA AI</span>
+          </div>
+          <button id="themeToggle" class="btn-icon">
+            <span>☾</span>
+          </button>
+        </header>
+
+        <!-- CHAT AREA -->
+        <div class="chat-area">
+          <!-- WELCOME SCREEN -->
+          <div id="welcomeScreen" class="welcome-screen">
+            <div class="welcome-header">
+              <div class="welcome-logo">✦</div>
+              <h1>How can I help?</h1>
+              <p>
+                I'm NOVA, your AI workspace. Ask a question, research something,
+                write code, analyze information, or start building.
+              </p>
+            </div>
+
+            <div class="info-section">
+              <div class="info-card">
+                <div class="info-label">TIME</div>
+                <div id="liveTime" class="info-value">--:--</div>
+                <div id="liveTimeZone" class="info-meta">Local time</div>
+              </div>
+
+              <div class="info-card">
+                <div class="info-label">DATE</div>
+                <div id="liveDate" class="info-value">---</div>
+                <div id="liveDay" class="info-meta">---</div>
+              </div>
+
+              <div class="info-card">
+                <div class="info-label">STATUS</div>
+                <div class="info-value">ONLINE</div>
+                <div class="info-meta">AI workspace</div>
+              </div>
+            </div>
+
+            <div class="starter-prompts">
+              <button class="starter-btn" data-prompt="Explain something difficult to me in a simple way.">
+                <span class="starter-icon">◈</span>
+                <strong>Explain something</strong>
+                <small>Make a difficult topic simple</small>
+              </button>
+
+              <button class="starter-btn" data-prompt="Help me build a project. Ask me only the questions you actually need.">
+                <span class="starter-icon">{ }</span>
+                <strong>Build a project</strong>
+                <small>Plan and write the code</small>
+              </button>
+
+              <button class="starter-btn" data-prompt="Research the latest information about this topic and summarize the important developments.">
+                <span class="starter-icon">⌕</span>
+                <strong>Research something</strong>
+                <small>Find current information</small>
+              </button>
+
+              <button class="starter-btn" data-prompt="Help me analyze a problem and give me the most practical solution.">
+                <span class="starter-icon">◇</span>
+                <strong>Analyze a problem</strong>
+                <small>Think through it with me</small>
+              </button>
+            </div>
+          </div>
+
+          <!-- MESSAGES -->
+          <div id="messages" class="messages hidden"></div>
+        </div>
+
+        <!-- COMPOSER -->
+        <div class="composer-area">
+          <div class="composer">
+            <textarea
+              id="messageInput"
+              placeholder="Ask NOVA anything..."
+              rows="1"
+              maxlength="12000"
+            ></textarea>
+            <button id="sendBtn" class="btn-send" aria-label="Send message">
+              ↑
+            </button>
+          </div>
+          <div class="composer-hint">
+            NOVA can search current information when your question requires it.
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- MODAL -->
+    <div id="modal" class="modal hidden">
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modalTitle">NOVA</h2>
+          <button id="modalClose" class="btn-icon">✕</button>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+      </div>
+    </div>
+
+    <!-- EXTERNAL LIBRARIES -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@latest/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js"></script>
+
+    <!-- LOCAL SCRIPTS -->
+    <script src="nova/tools.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
