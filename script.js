@@ -488,164 +488,140 @@ async function enterApp(user) {
     USER DATA
 ========================================================= */
 
+
 async function loadUserData() {
+    if (!supabaseClient || !currentUser) return;
 
-  if (
-    !currentUser ||
-    !supabaseClient
-  ) {
-    return;
-  }
+    try {
+        await ensureProfile();
 
-  currentConversationId = null;
-  currentConversationMessages = [];
-  clearMessages();
+        const { data: conversationData, error: conversationError } =
+            await supabaseClient
+                .from("conversations")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .order("updated_at", { ascending: false });
 
-  try {
-    const savedConversationId = localStorage.getItem("nova_current_conversation_id");
+        if (conversationError) throw conversationError;
 
-    if (savedConversationId) {
-      await loadConversation(savedConversationId);
+        conversations = Array.isArray(conversationData)
+            ? conversationData
+            : [];
+
+        const { data: memoryData, error: memoryError } =
+            await supabaseClient
+                .from("memories")
+                .select("*")
+                .eq("user_id", currentUser.id)
+                .order("created_at", { ascending: true });
+
+        if (memoryError) throw memoryError;
+
+        novaMemories = Array.isArray(memoryData)
+            ? memoryData
+            : [];
+
+        // Browser storage is optional. Never let it block Supabase.
+        let savedConversationId = null;
+
+        try {
+            savedConversationId =
+                localStorage.getItem("nova_current_conversation");
+        } catch (storageError) {
+            console.warn("Browser storage unavailable:", storageError);
+        }
+
+        renderConversationList();
+
+        const savedConversationExists =
+            savedConversationId &&
+            conversations.some(c => c.id === savedConversationId);
+
+        if (savedConversationExists) {
+            await loadConversation(savedConversationId);
+        } else {
+            currentConversationId = null;
+            currentConversationMessages = [];
+            clearMessages();
+        }
+
+    } catch (error) {
+        console.error("Could not load NOVA user data:", error);
+
+        if (messagesContainer) {
+            messagesContainer.innerHTML = "";
+            const notice = document.createElement("p");
+            notice.className = "storage-error";
+            notice.textContent =
+                "Couldn't load your saved chats. Check your connection and try again.";
+            messagesContainer.appendChild(notice);
+        }
     }
-  } catch (_) {
-    // Ignore restore failures; user can still browse and create new chats.
-  }
-
-  await loadMemories();
-  await loadConversations();
 }
+
 
 
 /* =========================================================
     CONVERSATIONS
 ========================================================= */
 
-async function loadConversations() {
 
-  if (!currentUser) {
-    return;
-  }
+async function loadConversation(conversationId) {
+    if (!currentUser || !supabaseClient || !conversationId) return;
 
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient
-
-      .from("conversations")
-
-      .select(
-        "id,title,created_at,updated_at"
-      )
-
-      .eq(
-        "user_id",
-        currentUser.id
-      )
-
-      .order(
-        "updated_at",
-        {
-          ascending: false
+    try {
+        if (messagesContainer) {
+            messagesContainer.setAttribute("aria-busy", "true");
         }
-      );
 
+        const { data, error } = await supabaseClient
+            .from("messages")
+            .select("*")
+            .eq("conversation_id", conversationId)
+            .eq("user_id", currentUser.id)
+            .order("created_at", { ascending: true });
 
-  if (error) {
+        if (error) throw error;
 
-    console.error(
-      "Conversation load error:",
-      error
-    );
+        // Don't change the active chat until its history is retrieved.
+        const loadedMessages = Array.isArray(data) ? data : [];
 
-    return;
-  }
+        currentConversationId = conversationId;
 
+        currentConversationMessages = loadedMessages.map(message => ({
+            role: message.role === "assistant" ? "ai" : message.role,
+            content: String(message.content ?? "")
+        }));
 
-  renderConversationList(
-    data || []
-  );
-}
+        clearMessages();
+        hideWelcome();
 
+        currentConversationMessages.forEach(message => {
+            addMessageToScreen(message.role, message.content, false);
+        });
 
-function renderConversationList(
-  conversations = []
-) {
-
-  const list =
-    $("conversationList");
-
-
-  list.innerHTML =
-    "";
-
-
-  $("emptyConversations")
-    .classList
-    .toggle(
-      "hidden",
-      conversations.length > 0
-    );
-
-
-  conversations.forEach(
-    conversation => {
-
-      const button =
-        document.createElement(
-          "button"
-        );
-
-
-      button.type =
-        "button";
-
-
-      button.className =
-        "conversation-item";
-
-
-      if (
-        conversation.id ===
-        currentConversationId
-      ) {
-
-        button.classList.add(
-          "active"
-        );
-      }
-
-
-      button.textContent =
-        conversation.title ||
-        "New conversation";
-
-
-      button.title =
-        conversation.title ||
-        "New conversation";
-
-
-      button.addEventListener(
-        "click",
-        async () => {
-
-          await loadConversation(
-            conversation.id
-          );
-
-          closeMobileSidebar();
+        try {
+            localStorage.setItem(
+                "nova_current_conversation",
+                conversationId
+            );
+        } catch (storageError) {
+            console.warn("Could not remember active chat:", storageError);
         }
-      );
 
+        renderConversationList();
+        scrollToBottom();
 
-      list.appendChild(
-        button
-      );
+    } catch (error) {
+        console.error("Conversation loading failed:", error);
+        alert("Couldn't open this conversation. Check your connection and try again.");
+    } finally {
+        if (messagesContainer) {
+            messagesContainer.removeAttribute("aria-busy");
+        }
     }
-  );
 }
+
 
 
 /* =========================================================
@@ -888,36 +864,36 @@ function createConversationTitle(
     SAVE MESSAGE
 ========================================================= */
 
-async function saveMessageToSupabase(
-  conversationId,
-  role,
-  content
-) {
-  if (!currentUser || !conversationId) {
-    return null;
-  }
 
-  const databaseRole =
-    normalizeStoredRole(role);
+async function saveMessageToSupabase(conversationId, role, content) {
+    if (!supabaseClient || !currentUser || !conversationId) {
+        throw new Error("Cannot save message: conversation or user is missing.");
+    }
 
-  const { data, error } = await supabaseClient
-    .from("messages")
-    .insert({
-      conversation_id: conversationId,
-      user_id: currentUser.id,
-      role: databaseRole,
-      content
-    })
-    .select(
-      "id,conversation_id,user_id,role,content,created_at"
-    )
-    .single();
+    const normalizedRole =
+        role === "assistant" ? "ai" : role;
 
-  if (error) {
-    throw error;
-  }
+    if (!["user", "ai", "system"].includes(normalizedRole)) {
+        throw new Error("Invalid message role.");
+    }
 
-  return data;
+    const { data, error } = await supabaseClient
+        .from("messages")
+        .insert({
+            conversation_id: conversationId,
+            user_id: currentUser.id,
+            role: normalizedRole,
+            content: String(content ?? "")
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Supabase message save failed:", error);
+        throw error;
+    }
+
+    return data;
 }
 
 
