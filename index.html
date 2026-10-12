@@ -1,552 +1,207 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
-  />
-
-  <meta
-    name="description"
-    content="NOVA AI — an intelligent AI workspace for conversation, research, coding, analysis and productivity."
-  />
-
-  <meta name="theme-color" content="#07090d" />
-
-  <title>NOVA AI</title>
-
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-
-  <link
-    rel="stylesheet"
-    href="style.css"
-  />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f8ff">
+  <meta name="description" content="NOVA AI — your intelligent workspace for chat, research, coding and analysis.">
+  <title>NOVA AI — Intelligent Workspace</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
-
 <body>
-
-  <!-- =========================
-       AUTH SCREEN
-  ========================== -->
-
-  <section id="authScreen" class="auth-screen hidden">
-
-    <div class="auth-card">
-
-      <div class="auth-brand">
-        <div class="brand-mark">✦</div>
-
-        <div>
-          <div class="brand-name">NOVA</div>
-          <div class="brand-subtitle">AI WORKSPACE</div>
-        </div>
-      </div>
-
+  <!-- AUTHENTICATION -->
+  <section id="authScreen" class="auth-screen">
+    <div class="auth-container">
+      <div class="auth-logo">✦ NOVA</div>
       <h1 id="authTitle">Welcome back</h1>
+      <p id="authDescription">Sign in to continue using NOVA.</p>
 
-      <p id="authDescription">
-        Sign in to continue using NOVA.
-      </p>
-
-      <form id="authForm">
-
-        <div
-          id="authNameField"
-          class="field hidden"
-        >
+      <form id="authForm" class="auth-form">
+        <div id="authNameField" class="form-group hidden">
           <label for="authName">Name</label>
-
-          <input
-            id="authName"
-            type="text"
-            autocomplete="name"
-            placeholder="Your name"
-          />
+          <input id="authName" type="text" placeholder="Your name"
+            autocomplete="name">
         </div>
 
-        <div class="field">
-
+        <div class="form-group">
           <label for="authEmail">Email</label>
-
-          <input
-            id="authEmail"
-            type="email"
-            autocomplete="email"
-            placeholder="you@example.com"
-            required
-          />
-
+          <input id="authEmail" type="email" placeholder="you@example.com"
+            autocomplete="email" required>
         </div>
 
-        <div class="field">
-
+        <div class="form-group">
           <label for="authPassword">Password</label>
-
-          <input
-            id="authPassword"
-            type="password"
-            autocomplete="current-password"
-            placeholder="Your password"
-            required
-          />
-
+          <input id="authPassword" type="password" placeholder="Your password"
+            autocomplete="current-password" minlength="6" required>
         </div>
 
-        <button
-          id="authSubmit"
-          class="primary-button"
-          type="submit"
-        >
+        <button id="authSubmit" type="submit" class="btn btn-primary">
           Sign in
         </button>
-
-        <div
-          id="authMessage"
-          class="auth-message"
-          aria-live="polite"
-        ></div>
-
+        <div id="authMessage" class="auth-message" role="status"></div>
       </form>
 
-      <button
-        id="authSwitch"
-        class="text-button"
-        type="button"
-      >
+      <button id="authSwitch" type="button" class="btn btn-link">
         Create an account
       </button>
-
     </div>
-
   </section>
 
-
-  <!-- =========================
-       APPLICATION
-  ========================== -->
-
+  <!-- MAIN APPLICATION -->
   <div id="app" class="app hidden">
-
-    <!-- MOBILE OVERLAY -->
-
-    <div
-      id="sidebarOverlay"
-      class="sidebar-overlay"
-    ></div>
-
-
-    <!-- =========================
-         SIDEBAR
-    ========================== -->
-
-    <aside
-      id="sidebar"
-      class="sidebar"
-    >
-
-      <div class="sidebar-top">
-
-        <div class="sidebar-brand">
-
-          <div class="brand-mark small">
-            ✦
-          </div>
-
-          <div>
-            <div class="brand-name">
-              NOVA
-            </div>
-
-            <div class="brand-subtitle">
-              AI WORKSPACE
-            </div>
-          </div>
-
-        </div>
-
-        <button
-          id="sidebarCloseBtn"
-          class="icon-button mobile-only"
-          type="button"
-          aria-label="Close sidebar"
-        >
-          ×
-        </button>
-
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">✦ NOVA</div>
+        <button id="sidebarCloseBtn" type="button"
+          class="btn-icon mobile-only" aria-label="Close sidebar">✕</button>
       </div>
 
-
-      <button
-        id="newChatBtn"
-        class="new-chat-button"
-        type="button"
-      >
-        <span>＋</span>
-        <span>New chat</span>
+      <button id="newChatBtn" type="button" class="btn btn-new-chat">
+        <span>＋</span> New chat
       </button>
 
-
-      <div class="sidebar-section-title">
-        RECENT
+      <div class="sidebar-section">
+        <div class="sidebar-label">RECENT CONVERSATIONS</div>
+        <div id="conversationList" class="conversation-list"></div>
+        <div id="emptyConversations" class="empty-state">
+          Your conversations will appear here.
+        </div>
       </div>
 
-
-      <div
-        id="conversationList"
-        class="conversation-list"
-      ></div>
-
-
-      <div
-        id="emptyConversations"
-        class="empty-conversations"
-      >
-        No conversations yet.
+      <div class="sidebar-footer">
+        <button id="settingsBtn" type="button" class="btn-nav">⚙ Settings</button>
+        <button id="helpBtn" type="button" class="btn-nav">? Help</button>
+        <button id="logoutBtn" type="button" class="btn-nav danger">↪ Log out</button>
       </div>
-
-
-      <div class="sidebar-bottom">
-
-        <button
-          id="settingsBtn"
-          class="sidebar-button"
-          type="button"
-        >
-          <span>⚙</span>
-          <span>Settings</span>
-        </button>
-
-        <button
-          id="helpBtn"
-          class="sidebar-button"
-          type="button"
-        >
-          <span>?</span>
-          <span>Help</span>
-        </button>
-
-        <button
-          id="logoutBtn"
-          class="sidebar-button danger"
-          type="button"
-        >
-          <span>↪</span>
-          <span>Log out</span>
-        </button>
-
-      </div>
-
     </aside>
 
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
-    <!-- =========================
-         MAIN
-    ========================== -->
-
-    <main class="main">
-
+    <main class="main-content">
       <header class="topbar">
+        <button id="menuBtn" type="button" class="btn-icon mobile-only"
+          aria-label="Open sidebar">☰</button>
 
-        <button
-          id="menuBtn"
-          class="icon-button mobile-only"
-          type="button"
-          aria-label="Open sidebar"
-        >
-          ☰
-        </button>
-
-
-        <div class="topbar-model">
-
-          <div class="model-dot"></div>
-
-          <span>NOVA</span>
-
-          <span class="model-status">
-            AI
-          </span>
-
+        <div class="topbar-center">
+          <span class="status-dot"></span>
+          <span>NOVA AI</span>
+          <span id="novaStatus" class="status-label">CONNECTING</span>
         </div>
 
-
-        <button
-          id="themeToggle"
-          class="icon-button"
-          type="button"
-          aria-label="Toggle theme"
-          title="Toggle theme"
-        >
-          ☾
-        </button>
-
+        <button id="themeToggle" type="button" class="btn-icon"
+          aria-label="Toggle theme">☾</button>
       </header>
 
-
-      <!-- =========================
-           CHAT
-      ========================== -->
-
-      <section
-        id="chatContainer"
-        class="chat-container"
-      >
-
-        <div
-          id="welcomeScreen"
-          class="welcome-screen"
-        >
-
-          <div class="nova-orb">
-            <span>✦</span>
+      <div id="chatContainer" class="chat-area">
+        <section id="welcomeScreen" class="welcome-screen">
+          <div class="welcome-header">
+            <div class="welcome-logo">✦</div>
+            <p class="eyebrow">YOUR INTELLIGENT WORKSPACE</p>
+            <h1>What are we working on?</h1>
+            <p>
+              Research ideas, solve problems, write code, analyze documents,
+              and turn your plans into something real.
+            </p>
           </div>
 
-          <h1>
-            How can I help?
-          </h1>
+          <div class="info-section">
+            <article class="info-card">
+              <div class="info-label">LOCAL TIME</div>
+              <div id="liveTime" class="info-value">--:--</div>
+              <div id="liveTimeZone" class="info-meta">Your time zone</div>
+            </article>
 
-          <p>
-            I'm NOVA, your AI workspace.
-            Ask a question, research something,
-            write code, analyze information,
-            or start building.
-          </p>
+            <article class="info-card">
+              <div class="info-label">DATE</div>
+              <div id="liveDate" class="info-value">---</div>
+              <div id="liveDay" class="info-meta">---</div>
+            </article>
 
-
-          <!-- LIVE INFO CUBES -->
-
-          <div class="info-cubes">
-
-            <div class="info-cube">
-
-              <div class="cube-label">
-                TIME
-              </div>
-
-              <div
-                id="liveTime"
-                class="cube-value"
-              >
-                --:--
-              </div>
-
-              <div
-                id="liveTimeZone"
-                class="cube-meta"
-              >
-                Local time
-              </div>
-
-            </div>
-
-
-            <div class="info-cube">
-
-              <div class="cube-label">
-                DATE
-              </div>
-
-              <div
-                id="liveDate"
-                class="cube-value date-value"
-              >
-                ---
-              </div>
-
-              <div
-                id="liveDay"
-                class="cube-meta"
-              >
-                ---
-              </div>
-
-            </div>
-
-
-            <div class="info-cube">
-
-              <div class="cube-label">
-                STATUS
-              </div>
-
-              <div
-                id="novaStatus"
-                class="cube-value status-value"
-              >
-                ONLINE
-              </div>
-
-              <div class="cube-meta">
-                AI workspace
-              </div>
-
-            </div>
-
+            <article class="info-card">
+              <div class="info-label">SYSTEM</div>
+              <div class="info-value">NOVA</div>
+              <div class="info-meta">AI workspace</div>
+            </article>
           </div>
 
-
-          <!-- STARTER PROMPTS -->
-
-          <div class="starter-grid">
-
-            <button
-              class="starter-card"
-              data-prompt="Explain something difficult to me in a simple way."
-              type="button"
-            >
+          <div class="starter-prompts">
+            <button type="button" class="starter-btn"
+              data-prompt="Explain this topic clearly, with examples and practical applications.">
               <span class="starter-icon">◈</span>
-              <strong>Explain something</strong>
-              <small>Make a difficult topic simple</small>
+              <strong>Learn something</strong>
+              <small>Understand difficult topics</small>
             </button>
 
-
-            <button
-              class="starter-card"
-              data-prompt="Help me build a project. Ask me only the questions you actually need."
-              type="button"
-            >
+            <button type="button" class="starter-btn"
+              data-prompt="Help me plan and build a software project. Give me a practical implementation plan and code where appropriate.">
               <span class="starter-icon">{ }</span>
               <strong>Build a project</strong>
-              <small>Plan and write the code</small>
+              <small>Plan, design and code</small>
             </button>
 
-
-            <button
-              class="starter-card"
-              data-prompt="Research the latest information about artificial intelligence and summarize the important developments."
-              type="button"
-            >
+            <button type="button" class="starter-btn"
+              data-prompt="Research the latest information about this topic. Use web research if available, distinguish verified facts from uncertainty, and provide sources.">
               <span class="starter-icon">⌕</span>
-              <strong>Research something</strong>
-              <small>Find current information</small>
+              <strong>Research a topic</strong>
+              <small>Investigate current information</small>
             </button>
 
-
-            <button
-              class="starter-card"
-              data-prompt="Help me analyze a problem and give me the most practical solution."
-              type="button"
-            >
+            <button type="button" class="starter-btn"
+              data-prompt="Analyze this problem, identify its root causes, compare possible solutions, and recommend the most practical next step.">
               <span class="starter-icon">◇</span>
-              <strong>Analyze a problem</strong>
-              <small>Think through it with me</small>
+              <strong>Solve a problem</strong>
+              <small>Think through the options</small>
             </button>
-
           </div>
+        </section>
 
-        </div>
+        <section id="messages" class="messages hidden"
+          aria-live="polite" aria-label="Conversation messages"></section>
+      </div>
 
-
-        <div
-          id="messages"
-          class="messages"
-        ></div>
-
-      </section>
-
-
-      <!-- =========================
-           COMPOSER
-      ========================== -->
-
-      <div class="composer-wrapper">
-
+      <footer class="composer-area">
         <div class="composer">
+          <textarea id="messageInput"
+            placeholder="Message NOVA..."
+            rows="1" maxlength="12000"
+            aria-label="Message NOVA"></textarea>
 
-          <textarea
-            id="messageInput"
-            rows="1"
-            maxlength="12000"
-            placeholder="Ask NOVA anything..."
-            autocomplete="off"
-          ></textarea>
-
-
-          <button
-            id="sendBtn"
-            class="send-button"
-            type="button"
-            aria-label="Send message"
-          >
-            ↑
-          </button>
-
+          <button id="sendBtn" type="button" class="btn-send"
+            aria-label="Send message">↑</button>
         </div>
-
-
-        <div class="composer-note">
-          NOVA can search current information when your question requires it.
+        <div class="composer-hint">
+          AI can make mistakes. Verify important information and sources.
         </div>
-
-      </div>
-
+      </footer>
     </main>
-
   </div>
 
+  <!-- MODAL -->
+  <div id="modal" class="modal hidden">
+    <button id="modalOverlay" type="button" class="modal-overlay"
+      aria-label="Close dialog"></button>
 
-  <!-- =========================
-       MODAL
-  ========================== -->
-
-  <div
-    id="modal"
-    class="modal hidden"
-  >
-
-    <div
-      id="modalOverlay"
-      class="modal-overlay"
-    ></div>
-
-    <div class="modal-card">
-
-      <div class="modal-header">
-
-        <h2 id="modalTitle">
-          NOVA
-        </h2>
-
-        <button
-          id="modalClose"
-          class="icon-button"
-          type="button"
-        >
-          ×
-        </button>
-
-      </div>
-
-      <div
-        id="modalBody"
-        class="modal-body"
-      ></div>
-
-    </div>
-
+    <section class="modal-content" role="dialog"
+      aria-modal="true" aria-labelledby="modalTitle">
+      <header class="modal-header">
+        <h2 id="modalTitle">NOVA</h2>
+        <button id="modalClose" type="button" class="btn-icon"
+          aria-label="Close dialog">✕</button>
+      </header>
+      <div id="modalBody" class="modal-body"></div>
+    </section>
   </div>
 
-
-  <!-- =========================
-       LIBRARIES
-  ========================== -->
-
+  <!-- EXTERNAL LIBRARIES: load once -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <script src="https://cdn.jsdelivr.net/npm/marked@latest/marked.min.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js"></script>
 
-  <!-- NOVA LOCAL TOOLS -->
-
-  <script src="nova/tools.js"></script>
-  <script src="nova/production-guard.js"></script>
-  <script src="nova/final-stage.js"></script>
-
-  <!-- MAIN APP -->
-
-  <script src="script.js"></script>
-
+  <!-- APPLICATION SCRIPTS: no duplicate imports -->
+  <script src="/nova/tools.js"></script>
+  <script src="/script.js"></script>
+  <script src="/nova/final-stage.js"></script>
+  <script src="/nova/toolbox.js"></script>
 </body>
 </html>
