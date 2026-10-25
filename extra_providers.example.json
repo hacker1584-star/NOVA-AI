@@ -1,0 +1,9 @@
+[
+  {
+    "name": "xkiro",
+    "label": "Xkiro",
+    "base_url": "https://PUT-THE-API-ADDRESS-FROM-THEIR-DOCS-HERE/v1",
+    "key_env": "XKIRO_API_KEY",
+    "models": ["PUT-A-MODEL-NAME-HERE"]
+  }
+]

@@ -1,0 +1,26 @@
+# Render blueprint: New + > Blueprint, then pick this repository.
+services:
+  - type: web
+    name: nimbus
+    runtime: docker
+    plan: starter            # a persistent disk needs a paid plan; chats/accounts reset on redeploy without one
+    healthCheckPath: /api/health
+    envVars:
+      - key: NIMBUS_PUBLIC_URL
+        sync: false          # e.g. https://nimbus.onrender.com
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: NIMBUS_SIGNUP_CODE
+        sync: false          # optional invite code
+    disk:
+      name: nimbus-data
+      mountPath: /data
+      sizeGB: 1

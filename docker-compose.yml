@@ -1,0 +1,16 @@
+services:
+  nimbus:
+    build: .
+    # or, once published: image: ghcr.io/YOUR_GITHUB_USER/nimbus-assistant:latest
+    env_file: .env
+    environment:
+      NIMBUS_HOST: 0.0.0.0
+      NIMBUS_DATA_DIR: /data
+    ports:
+      - "8000:8000"
+    volumes:
+      - nimbus-data:/data
+    restart: unless-stopped
+
+volumes:
+  nimbus-data:

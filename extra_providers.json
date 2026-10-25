@@ -1,0 +1,25 @@
+[
+  {
+    "name": "xkiro",
+    "label": "Xkiro Free",
+    "base_url": "https://api.xkiro.com/v1",
+    "key_env": "XKIRO_API_KEY",
+    "models": [
+      "mistralai/ministral-14b",
+      "mistralai/ministral-3b",
+      "qwen/qwen-plus-2025-07-28:free",
+      "qwen/qwen3-vl-plus:free",
+      "sensenova/sensenova-6.8-flash-lite",
+      "cohere/north-mini-code",
+      "cohere/command-a",
+      "cohere/command-r-08-2024",
+      "cohere/aya-vision-32b",
+      "cohere/tiny-aya-global",
+      "cohere/command-r-plus-08-2024",
+      "cohere/aya-expanse-32b",
+      "cohere/tiny-aya-earth",
+      "cohere/tiny-aya-fire",
+      "cohere/command-a-plus"
+    ]
+  }
+]
